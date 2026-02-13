@@ -2,6 +2,50 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Search, Filter, DollarSign, TrendingUp, Clock, Package } from 'lucide-react';
 import { initDB, getAllSales, addSale, updateSale, deleteSale } from './db';
 
+// ---------- Helpers de formatação (pt-BR) ----------
+// Mantém digitação livre (string) e só converte para número no submit.
+const parseBRL = (v) => {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const s0 = String(v).trim();
+  if (!s0) return 0;
+
+  // remove moeda e espaços
+  let s = s0
+    .replace(/R\$\s?/gi, '')
+    .replace(/\s/g, '')
+    .replace(/[^0-9,.-]/g, '');
+
+  // Se tem vírgula, ela é decimal. Remove pontos de milhar.
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatBRLInput = (v) => {
+  if (v === null || v === undefined) return '';
+  const n = parseBRL(v);
+  // Se o usuário está apagando tudo, mantém vazio
+  const s0 = String(v).trim();
+  if (!s0) return '';
+  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
+
+const formatBRL = (n) => {
+  const v = Number(n);
+  const safe = Number.isFinite(v) ? v : 0;
+  return safe.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const toMoneyInput = (v) => {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return v === 0 ? '' : formatBRL(v);
+  return String(v);
+};
+
 function App() {
   const [sales, setSales] = useState([]);
   const [activeTab, setActiveTab] = useState('vendas');
@@ -100,17 +144,29 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Converte valores monetários com tolerância a vírgula/ponto
+    const valorTabelaNum = parseBRL(formData.valorTabela);
+    const descontoPercent = Number(formData.descontoPercent) || 0;
+    const descontoNum = valorTabelaNum * (descontoPercent / 100);
+    const valorFinalNum = Math.max(valorTabelaNum - descontoNum, 0);
+
+    // Pagamento: sinal (pago agora) e restante calculado automaticamente
+    const sinalNum = parseBRL(formData.pagamento?.sinal);
+    const restanteNum = Math.max(valorFinalNum - sinalNum, 0);
+
     const saleData = {
       ...formData,
-      valorTabela: parseFloat(formData.valorTabela) || 0,
-      desconto: parseFloat(formData.desconto) || 0,
-      valorFinal: parseFloat(formData.valorFinal) || 0,
-      comissao: parseFloat(formData.comissao) || 0,
+      valorTabela: valorTabelaNum,
+      descontoPercent,
+      desconto: descontoNum,
+      valorFinal: valorFinalNum,
+      comissao: Number(formData.comissao) || 0,
       pagamento: {
         ...formData.pagamento,
-        sinal: parseFloat(formData.pagamento.sinal) || 0,
-        restante: parseFloat(formData.pagamento.restante) || 0
+        sinal: sinalNum,
+        restante: restanteNum,
+        parcelas: Number(formData.pagamento?.parcelas) || 1,
       }
     };
 
@@ -128,11 +184,16 @@ function App() {
   const resetForm = () => {
     setFormData({
       cliente: '',
+      // Produto pode ter múltiplas linhas (um item por linha)
       produto: '',
+      // Mantemos como string para digitação suave; convertemos no submit
       valorTabela: '',
+      // Desconto agora é controlado por porcentagem (0/10/15/20)
+      descontoPercent: 0,
       desconto: '',
       valorFinal: '',
-      comissao: '',
+      // Comissão: opções 3/4/5/6
+      comissao: '6',
       dataPrevista: '',
       dataEntregue: '',
       pagamento: {
@@ -140,7 +201,8 @@ function App() {
         dataSinal: '',
         restante: '',
         dataRestante: '',
-        formaPagamento: 'dinheiro'
+        formaPagamento: 'dinheiro',
+        parcelas: 1
       },
       status: 'concluida',
       pendenciaMotivo: '',
@@ -152,7 +214,24 @@ function App() {
 
   const handleEdit = (sale) => {
     setEditingSale(sale);
-    setFormData(sale);
+    // Normaliza para não quebrar vendas antigas
+    setFormData({
+      ...sale,
+      produto: sale?.produto ?? '',
+      valorTabela: sale?.valorTabela ?? '',
+      descontoPercent: Number.isFinite(sale?.descontoPercent) ? sale.descontoPercent : 0,
+      desconto: sale?.desconto ?? '',
+      valorFinal: sale?.valorFinal ?? '',
+      comissao: sale?.comissao ?? '6',
+      pagamento: {
+        sinal: sale?.pagamento?.sinal ?? '',
+        dataSinal: sale?.pagamento?.dataSinal ?? '',
+        restante: sale?.pagamento?.restante ?? '',
+        dataRestante: sale?.pagamento?.dataRestante ?? '',
+        formaPagamento: sale?.pagamento?.formaPagamento ?? 'dinheiro',
+        parcelas: sale?.pagamento?.parcelas ?? 1
+      }
+    });
     setShowModal(true);
   };
 
@@ -197,6 +276,14 @@ function App() {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('pt-BR');
   };
+
+  // ---------- Derivados do formulário (para UI) ----------
+  const valorTabelaNumUI = parseBRL(formData.valorTabela);
+  const descontoPercentUI = Number(formData.descontoPercent) || 0;
+  const descontoNumUI = valorTabelaNumUI * (descontoPercentUI / 100);
+  const valorFinalNumUI = Math.max(valorTabelaNumUI - descontoNumUI, 0);
+  const sinalNumUI = parseBRL(formData.pagamento?.sinal);
+  const restanteNumUI = Math.max(valorFinalNumUI - sinalNumUI, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -406,74 +493,88 @@ function App() {
               </h2>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome do cliente</label>
                     <input
                       type="text"
                       required
                       value={formData.cliente}
-                      onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, cliente: e.target.value }))}
+                      placeholder="Ex.: Ana Souza"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Produtos (1 item por linha)</label>
+                    <textarea
+                      required
+                      rows={4}
+                      value={formData.produto}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, produto: e.target.value }))}
+                      placeholder={'Ex.:\nColchão Queen\nTravesseiro\nCapa protetora'}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Dica: escreva cada produto em uma linha para ficar organizado.</p>
+                  </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Produto</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor de tabela (R$)</label>
                     <input
                       type="text"
-                      required
-                      value={formData.produto}
-                      onChange={(e) => setFormData({ ...formData, produto: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor de Tabela</label>
-                    <input
-                      type="number"
-                      step="0.01"
+                      inputMode="decimal"
                       required
                       value={formData.valorTabela}
-                      onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, valorTabela: e.target.value }))}
+                      onBlur={() => setFormData((prev) => ({ ...prev, valorTabela: formatBRLInput(prev.valorTabela) }))}
+                      placeholder="0,00"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Desconto</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.desconto}
-                      onChange={(e) => setFormData({ ...formData, desconto: e.target.value })}
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Desconto aplicado</label>
+                    <select
+                      value={formData.descontoPercent}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, descontoPercent: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={0}>Sem desconto</option>
+                      <option value={10}>10%</option>
+                      <option value={15}>15%</option>
+                      <option value={20}>20%</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">Desconto: <span className="font-semibold">{formatCurrency(descontoNumUI)}</span></p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor vendido (R$)</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formatCurrency(valorFinalNumUI).replace('R$', '').trim()}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Final</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.valorFinal}
-                      onChange={(e) => setFormData({ ...formData, valorFinal: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Comissão</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.comissao}
-                      onChange={(e) => setFormData({ ...formData, comissao: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Comissão</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {['3', '4', '5', '6'].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, comissao: p }))}
+                          className={`px-4 py-2 rounded-lg border text-sm font-semibold transition ${String(formData.comissao) === p
+                            ? 'bg-blue-600 border-blue-600 text-white shadow'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -518,13 +619,18 @@ function App() {
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Sinal</label>
                       <input
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={formData.pagamento.sinal}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pagamento: { ...formData.pagamento, sinal: e.target.value }
-                        })}
+                        onChange={(e) => setFormData((prev) => ({
+                          ...prev,
+                          pagamento: { ...prev.pagamento, sinal: e.target.value }
+                        }))}
+                        onBlur={() => setFormData((prev) => ({
+                          ...prev,
+                          pagamento: { ...prev.pagamento, sinal: formatBRLInput(prev.pagamento.sinal) }
+                        }))}
+                        placeholder="0,00"
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -543,17 +649,18 @@ function App() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Restante</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Falta para pagar</label>
                       <input
-                        type="number"
-                        step="0.01"
-                        value={formData.pagamento.restante}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pagamento: { ...formData.pagamento, restante: e.target.value }
-                        })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="text"
+                        readOnly
+                        value={formatBRLInput(restanteNumUI)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-900"
                       />
+                      {restanteNumUI > 0 ? (
+                        <p className="mt-1 text-xs text-amber-700">Pendência: <span className="font-semibold">{formatCurrency(restanteNumUI)}</span></p>
+                      ) : (
+                        <p className="mt-1 text-xs text-emerald-700">Totalmente pago</p>
+                      )}
                     </div>
 
                     <div>
@@ -573,18 +680,38 @@ function App() {
                       <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
                       <select
                         value={formData.pagamento.formaPagamento}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pagamento: { ...formData.pagamento, formaPagamento: e.target.value }
-                        })}
+                        onChange={(e) => setFormData((prev) => ({
+                          ...prev,
+                          pagamento: { ...prev.pagamento, formaPagamento: e.target.value }
+                        }))}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="dinheiro">Dinheiro</option>
                         <option value="pix">PIX</option>
                         <option value="cartao">Cartão</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="link">Link de pagamento</option>
                         <option value="transferencia">Transferência</option>
                       </select>
                     </div>
+
+                    {formData.pagamento.formaPagamento === 'cartao' && (
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Parcelas</label>
+                        <select
+                          value={formData.pagamento.parcelas}
+                          onChange={(e) => setFormData((prev) => ({
+                            ...prev,
+                            pagamento: { ...prev.pagamento, parcelas: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={String(n)}>{n}x</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
 
