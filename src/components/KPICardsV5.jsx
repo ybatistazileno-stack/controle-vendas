@@ -14,6 +14,7 @@ export const KPICardsV5 = ({ metricas, goal, onChangeGoal }) => {
   const meta = Number(goal) || 0;
   const falta = meta > 0 ? Math.max(0, meta - vendido) : 0;
   const percent = meta > 0 ? Math.min(100, (vendido / meta) * 100) : 0;
+  const inputValue = goal !== undefined && goal !== null && goal !== '' ? String(goal) : '';
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -47,7 +48,8 @@ export const KPICardsV5 = ({ metricas, goal, onChangeGoal }) => {
             <input
               className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
               inputMode="numeric"
-              value={meta ? String(meta) : ''}
+              type="text"
+              value={inputValue}
               onChange={(e) => onChangeGoal?.(e.target.value)}
               placeholder="10000"
             />

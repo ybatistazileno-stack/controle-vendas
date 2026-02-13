@@ -67,7 +67,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto bg-white rounded-2xl shadow-sm border mt-4 pb-40">
+    <div className="p-4 max-w-md mx-auto bg-white rounded-2xl shadow-sm border mt-4 pb-48">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-extrabold text-gray-900">{editingId ? 'Editar Venda' : 'Nova Venda'}</h2>
         <button type="button" onClick={onCancel} className="p-2 bg-gray-100 rounded-full text-gray-500">
@@ -79,17 +79,17 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Data</label>
-            <input type="date" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })} required />
+            <input type="date" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.data} onChange={(e) => setFormData((prev) => ({ ...prev, data: e.target.value }))} required />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</label>
-            <input type="text" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" placeholder="Nome" value={formData.cliente} onChange={(e) => setFormData({ ...formData, cliente: e.target.value })} required />
+            <input type="text" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" placeholder="Nome" value={formData.cliente} onChange={(e) => setFormData((prev) => ({ ...prev, cliente: e.target.value }))} required />
           </div>
         </div>
 
         <div className="space-y-1">
           <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Produtos / Descrição</label>
-          <textarea className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-medium" rows="2" placeholder="O que foi vendido?" value={formData.produtos} onChange={(e) => setFormData({ ...formData, produtos: e.target.value })} />
+          <textarea className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-medium" rows="2" placeholder="O que foi vendido?" value={formData.produtos} onChange={(e) => setFormData((prev) => ({ ...prev, produtos: e.target.value }))} />
         </div>
 
         <div className="bg-gray-50 rounded-3xl p-5 space-y-5 border border-gray-100">
@@ -98,14 +98,14 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Vendido</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
-                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-black text-xl text-blue-600" value={formData.valor} onChange={(e) => setFormData({ ...formData, valor: e.target.value })} placeholder="0,00" required />
+                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-black text-xl text-blue-600" value={formData.valor} onChange={(e) => setFormData((prev) => ({ ...prev, valor: e.target.value }))} placeholder="0,00" required />
               </div>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Entrada</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
-                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorEntrada} onChange={(e) => setFormData({ ...formData, valorEntrada: e.target.value })} placeholder="Total" />
+                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorEntrada} onChange={(e) => setFormData((prev) => ({ ...prev, valorEntrada: e.target.value }))} placeholder="Total" />
               </div>
             </div>
           </div>
@@ -113,11 +113,11 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Tabela</label>
-              <input type="number" step="0.01" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorTabela} onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })} placeholder="Ref." />
+              <input type="number" step="0.01" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorTabela} onChange={(e) => setFormData((prev) => ({ ...prev, valorTabela: e.target.value }))} placeholder="Ref." />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Desconto</label>
-              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.descontoAplicado} onChange={(e) => setFormData({ ...formData, descontoAplicado: e.target.value })}>
+              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.descontoAplicado} onChange={(e) => setFormData((prev) => ({ ...prev, descontoAplicado: e.target.value }))}>
                 {descontoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
@@ -143,7 +143,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
               <button
                 key={n}
                 type="button"
-                onClick={() => setFormData({ ...formData, percentual: String(n) })}
+                onClick={() => setFormData((prev) => ({ ...prev, percentual: String(n) }))}
                 className={`py-3 rounded-2xl font-black transition-all border-2 ${Number(formData.percentual) === n ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
               >
                 {n}%
@@ -154,7 +154,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
 
         <div className="space-y-1">
           <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Forma de Pagamento</label>
-          <select className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.pagamentoDetalhe} onChange={(e) => setFormData({ ...formData, pagamentoDetalhe: e.target.value })}>
+          <select className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.pagamentoDetalhe} onChange={(e) => setFormData((prev) => ({ ...prev, pagamentoDetalhe: e.target.value }))}>
             {pagamentoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
@@ -163,17 +163,17 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
           <div className="bg-orange-50/50 border-2 border-orange-100 rounded-3xl p-5 space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Motivo da Pendência</label>
-              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold bg-white" value={formData.motivoPendencia} onChange={(e) => setFormData({ ...formData, motivoPendencia: e.target.value })}>
+              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold bg-white" value={formData.motivoPendencia} onChange={(e) => setFormData((prev) => ({ ...prev, motivoPendencia: e.target.value }))}>
                 {motivoPendenciaOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Observação Obrigatória</label>
-              <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" placeholder="Ex: Cliente paga dia 10" value={formData.pendingObservation} onChange={(e) => setFormData({ ...formData, pendingObservation: e.target.value })} required />
+              <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" placeholder="Ex: Cliente paga dia 10" value={formData.pendingObservation} onChange={(e) => setFormData((prev) => ({ ...prev, pendingObservation: e.target.value }))} required />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Previsão de Pagamento</label>
-              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" value={formData.previsaoPagamento} onChange={(e) => setFormData({ ...formData, previsaoPagamento: e.target.value })} />
+              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" value={formData.previsaoPagamento} onChange={(e) => setFormData((prev) => ({ ...prev, previsaoPagamento: e.target.value }))} />
             </div>
           </div>
         )}
@@ -191,7 +191,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
           {formData.tipoEntrega === 'Agendada' && (
             <div className="space-y-1">
               <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Data da Entrega</label>
-              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.dataEntrega} onChange={(e) => setFormData({ ...formData, dataEntrega: e.target.value })} required />
+              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.dataEntrega} onChange={(e) => setFormData((prev) => ({ ...prev, dataEntrega: e.target.value }))} required />
             </div>
           )}
 
@@ -204,7 +204,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
                     <button
                       key={d}
                       type="button"
-                      onClick={() => setFormData({ ...formData, deliveryDeadlineDays: String(d) })}
+                      onClick={() => setFormData((prev) => ({ ...prev, deliveryDeadlineDays: String(d) }))}
                       className={`py-3 rounded-xl font-black transition-all border-2 ${Number(formData.deliveryDeadlineDays) === d ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-white text-gray-400'}`}
                     >
                       {d}d
@@ -214,7 +214,7 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Motivo / Detalhes</label>
-                <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.deliveryReason} onChange={(e) => setFormData({ ...formData, deliveryReason: e.target.value })} placeholder="Ex: Aguardando obra" />
+                <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.deliveryReason} onChange={(e) => setFormData((prev) => ({ ...prev, deliveryReason: e.target.value }))} placeholder="Ex: Aguardando obra" />
               </div>
             </div>
           )}
@@ -227,8 +227,8 @@ const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId
           </div>
         </div>
 
-        {/* ACTION BAR FIXA PREMIUM (MOBILE) */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[100] max-w-xl mx-auto flex gap-3">
+        {/* ACTION BAR FIXA PREMIUM (MOBILE) - z-index alto para ficar acima do teclado virtual */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[200] max-w-xl mx-auto flex gap-3">
           <button
             type="button"
             onClick={onCancel}
@@ -299,15 +299,33 @@ export default function App() {
   });
 
   const goalKey = (month) => `cv_goal_${month}`;
-  const [monthlyGoal, setMonthlyGoal] = useState(10000);
+  const [monthlyGoal, setMonthlyGoal] = useState(() => {
+    try {
+      const saved = localStorage.getItem(goalKey(getLocalMonthKey()));
+      const n = Number(saved);
+      return saved !== null && saved !== '' ? String(Number.isFinite(n) ? n : 10000) : '10000';
+    } catch {
+      return '10000';
+    }
+  });
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(goalKey(activeMonth));
       const n = Number(saved);
-      setMonthlyGoal(Number.isFinite(n) ? n : 10000);
+      setMonthlyGoal(saved !== null && saved !== '' ? String(Number.isFinite(n) ? n : 10000) : '10000');
     } catch {
-      setMonthlyGoal(10000);
+      setMonthlyGoal('10000');
+    }
+  }, [activeMonth]);
+
+  const handleGoalChange = useCallback((value) => {
+    setMonthlyGoal(value);
+    const num = parseFloat(String(value).replace(',', '.'));
+    if (value === '' || value === null || value === undefined) {
+      localStorage.setItem(goalKey(activeMonth), '0');
+    } else if (!Number.isNaN(num)) {
+      localStorage.setItem(goalKey(activeMonth), String(num));
     }
   }, [activeMonth]);
 
@@ -659,7 +677,7 @@ export default function App() {
 
   const DashboardView = () => (
     <div className="pb-32">
-      <KPICardsV5 metricas={metricas} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
+      <KPICardsV5 metricas={metricas} goal={monthlyGoal} onChangeGoal={handleGoalChange} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
 
       <div className="px-4 mt-4">
         <div className="flex gap-3 mb-4">
