@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { addVenda, getVendas, deleteVenda, updateVenda, addVendasBatch } from './db';
 import { verificarMigracao } from './utils/migration-v5';
 import { useSalesMetricsV5 } from './hooks/useSalesMetricsV5';
@@ -8,7 +8,7 @@ import { PendenciasTabV5 } from './components/PendenciasTabV5';
 import { EntregasTabV5 } from './components/EntregasTabV5';
 import { Toast } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
-import { Trash2, Edit, Plus, List, BarChart, Filter, Calendar, Save, X, Loader2 } from 'lucide-react';
+import { Trash2, Edit, Plus, List, BarChart, Filter, Save, X, Loader2 } from 'lucide-react';
 
 // --- UTILITÁRIOS ---
 const formatBRL = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -35,23 +35,7 @@ const getLocalMonthKey = () => {
   return `${year}-${month}`;
 };
 
-const formatLocalISODate = (dateObj) => {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 const isIsoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
-
-const sanitizeIcsText = (str) => {
-  if (!str) return '';
-  return String(str)
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/,/g, '\\,')
-    .replace(/;/g, '\\;')
-    .trim();
-};
 
 const descontoOptions = ['Sem desconto', 'Preço de tabela', 'Acima da tabela', '10%', '15%'];
 const pagamentoOptions = ['Pix • QR Code', 'Pix • CNPJ', 'Crédito (1x)', 'Crédito (2x)', 'Crédito (3x)', 'Crédito (4x)', 'Crédito (5x)', 'Crédito (6x)', 'Crédito (7x)', 'Crédito (8x)', 'Crédito (9x)', 'Crédito (10x)', 'Crédito (11x)', 'Crédito (12x)', 'Débito', 'Dinheiro'];
@@ -64,6 +48,214 @@ const motivoPendenciaOptions = [
   { value: 'outro', label: '🔹 Outro' },
 ];
 
+// --- COMPONENTE DE FORMULÁRIO (EXTRAÍDO PARA EVITAR PERDA DE FOCO) ---
+const FormView = ({ formData, setFormData, onSave, onCancel, isSaving, editingId }) => {
+  const valorSeguro = Number(formData.valor) || 0;
+  const entradaValor = toMoney(formData.valorEntrada);
+  const entradaSegura = Number.isNaN(entradaValor) ? valorSeguro : entradaValor;
+  const faltaPagar = Math.max(0, valorSeguro - entradaSegura);
+  const comissaoEstimada = valorSeguro * (Number(formData.percentual) / 100);
+
+  const handleTipoEntregaChange = (novoTipo) => {
+    setFormData((prev) => ({
+      ...prev,
+      tipoEntrega: novoTipo,
+      dataEntrega: novoTipo === 'Agendada' ? prev.dataEntrega : '',
+      motivoEntrega: novoTipo === 'Futura' ? prev.motivoEntrega : '',
+      deliveryDeadlineDays: novoTipo === 'Futura' ? prev.deliveryDeadlineDays : '',
+    }));
+  };
+
+  return (
+    <div className="p-4 max-w-md mx-auto bg-white rounded-2xl shadow-sm border mt-4 pb-40">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-extrabold text-gray-900">{editingId ? 'Editar Venda' : 'Nova Venda'}</h2>
+        <button type="button" onClick={onCancel} className="p-2 bg-gray-100 rounded-full text-gray-500">
+          <X size={20} />
+        </button>
+      </div>
+
+      <form onSubmit={onSave} className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Data</label>
+            <input type="date" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })} required />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</label>
+            <input type="text" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" placeholder="Nome" value={formData.cliente} onChange={(e) => setFormData({ ...formData, cliente: e.target.value })} required />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Produtos / Descrição</label>
+          <textarea className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-medium" rows="2" placeholder="O que foi vendido?" value={formData.produtos} onChange={(e) => setFormData({ ...formData, produtos: e.target.value })} />
+        </div>
+
+        <div className="bg-gray-50 rounded-3xl p-5 space-y-5 border border-gray-100">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Vendido</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
+                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-black text-xl text-blue-600" value={formData.valor} onChange={(e) => setFormData({ ...formData, valor: e.target.value })} placeholder="0,00" required />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Entrada</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
+                <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorEntrada} onChange={(e) => setFormData({ ...formData, valorEntrada: e.target.value })} placeholder="Total" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Tabela</label>
+              <input type="number" step="0.01" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorTabela} onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })} placeholder="Ref." />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Desconto</label>
+              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.descontoAplicado} onChange={(e) => setFormData({ ...formData, descontoAplicado: e.target.value })}>
+                {descontoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {faltaPagar > 0 ? (
+            <div className="bg-orange-100/50 border border-orange-200 text-orange-700 p-4 rounded-2xl flex justify-between items-center">
+              <span className="text-xs font-black uppercase">Falta Pagar</span>
+              <span className="text-lg font-black">{formatBRL(faltaPagar)}</span>
+            </div>
+          ) : (
+            <div className="bg-green-100/50 border border-green-200 text-green-700 p-4 rounded-2xl flex justify-between items-center">
+              <span className="text-xs font-black uppercase">Status</span>
+              <span className="text-sm font-black">Totalmente Pago ✅</span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Comissão</label>
+          <div className="grid grid-cols-4 gap-2">
+            {[3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setFormData({ ...formData, percentual: String(n) })}
+                className={`py-3 rounded-2xl font-black transition-all border-2 ${Number(formData.percentual) === n ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
+              >
+                {n}%
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Forma de Pagamento</label>
+          <select className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.pagamentoDetalhe} onChange={(e) => setFormData({ ...formData, pagamentoDetalhe: e.target.value })}>
+            {pagamentoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+
+        {faltaPagar > 0 && (
+          <div className="bg-orange-50/50 border-2 border-orange-100 rounded-3xl p-5 space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Motivo da Pendência</label>
+              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold bg-white" value={formData.motivoPendencia} onChange={(e) => setFormData({ ...formData, motivoPendencia: e.target.value })}>
+                {motivoPendenciaOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Observação Obrigatória</label>
+              <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" placeholder="Ex: Cliente paga dia 10" value={formData.pendingObservation} onChange={(e) => setFormData({ ...formData, pendingObservation: e.target.value })} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Previsão de Pagamento</label>
+              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" value={formData.previsaoPagamento} onChange={(e) => setFormData({ ...formData, previsaoPagamento: e.target.value })} />
+            </div>
+          </div>
+        )}
+
+        <div className="bg-blue-50/50 border-2 border-blue-100 rounded-3xl p-5 space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Tipo de Entrega</label>
+            <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold bg-white" value={formData.tipoEntrega} onChange={(e) => handleTipoEntregaChange(e.target.value)}>
+              <option value="Imediata">📦 Imediata</option>
+              <option value="Agendada">📅 Agendada</option>
+              <option value="Futura">🏭 Futura (Produção)</option>
+            </select>
+          </div>
+
+          {formData.tipoEntrega === 'Agendada' && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Data da Entrega</label>
+              <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.dataEntrega} onChange={(e) => setFormData({ ...formData, dataEntrega: e.target.value })} required />
+            </div>
+          )}
+
+          {formData.tipoEntrega === 'Futura' && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Prazo de Entrega (Dias)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[15, 20, 30, 35].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, deliveryDeadlineDays: String(d) })}
+                      className={`py-3 rounded-xl font-black transition-all border-2 ${Number(formData.deliveryDeadlineDays) === d ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-white text-gray-400'}`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Motivo / Detalhes</label>
+                <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.deliveryReason} onChange={(e) => setFormData({ ...formData, deliveryReason: e.target.value })} placeholder="Ex: Aguardando obra" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-6 flex justify-between items-center">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-green-600 uppercase tracking-wider">Comissão Prevista</span>
+            <div className="text-3xl font-black text-green-700">{formatBRL(comissaoEstimada)}</div>
+          </div>
+        </div>
+
+        {/* ACTION BAR FIXA PREMIUM (MOBILE) */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[100] max-w-xl mx-auto flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 h-[52px] rounded-2xl font-black text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            <X size={20} /> Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="flex-[2.5] h-[52px] rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:scale-100"
+          >
+            {isSaving ? (
+              <Loader2 size={24} className="animate-spin" />
+            ) : (
+              <>
+                <Save size={20} /> {editingId ? 'Atualizar Venda' : 'Confirmar Venda'}
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [view, setView] = useState('dashboard');
   const [vendas, setVendas] = useState([]);
@@ -77,7 +269,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, type: 'danger' });
 
-  const showToast = (message, type = 'success') => setToast({ message, type });
+  const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
 
   const [formData, setFormData] = useState({
     data: getLocalToday(),
@@ -107,15 +299,7 @@ export default function App() {
   });
 
   const goalKey = (month) => `cv_goal_${month}`;
-  const [monthlyGoal, setMonthlyGoal] = useState(() => {
-    try {
-      const saved = localStorage.getItem(goalKey(new Date().toISOString().slice(0, 7)));
-      const n = Number(saved);
-      return Number.isFinite(n) ? n : 10000;
-    } catch {
-      return 10000;
-    }
-  });
+  const [monthlyGoal, setMonthlyGoal] = useState(10000);
 
   useEffect(() => {
     try {
@@ -169,7 +353,7 @@ export default function App() {
     setVendas(dados);
   };
 
-  const limparForm = () => {
+  const limparForm = useCallback(() => {
     setFormData({
       data: getLocalToday(),
       cliente: '',
@@ -196,17 +380,7 @@ export default function App() {
       atualizadoEm: null,
       pagoEm: null,
     });
-  };
-
-  const handleTipoEntregaChange = (novoTipo) => {
-    setFormData((prev) => ({
-      ...prev,
-      tipoEntrega: novoTipo,
-      dataEntrega: novoTipo === 'Agendada' ? prev.dataEntrega : '',
-      motivoEntrega: novoTipo === 'Futura' ? prev.motivoEntrega : '',
-      deliveryDeadlineDays: novoTipo === 'Futura' ? prev.deliveryDeadlineDays : '',
-    }));
-  };
+  }, []);
 
   const metricas = useSalesMetricsV5(vendas, activeMonth);
 
@@ -304,13 +478,13 @@ export default function App() {
     }
   };
 
-  const handleEdit = (v) => {
+  const handleEdit = useCallback((v) => {
     setFormData({ ...v });
     setEditingId(v.id);
     setView('add');
-  };
+  }, []);
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
     setModal({
       isOpen: true,
       title: 'Apagar Venda',
@@ -319,13 +493,13 @@ export default function App() {
       onConfirm: async () => {
         await deleteVenda(id);
         await carregarVendas();
-        setModal({ ...modal, isOpen: false });
+        setModal((prev) => ({ ...prev, isOpen: false }));
         showToast('Venda removida.');
       }
     });
-  };
+  }, [showToast]);
 
-  const handleReceberRestante = (v) => {
+  const handleReceberRestante = useCallback((v) => {
     setModal({
       isOpen: true,
       title: 'Receber Pendência',
@@ -342,13 +516,13 @@ export default function App() {
         };
         await updateVenda(atualizada);
         await carregarVendas();
-        setModal({ ...modal, isOpen: false });
+        setModal((prev) => ({ ...prev, isOpen: false }));
         showToast('Pagamento recebido!');
       }
     });
-  };
+  }, [showToast]);
 
-  const handleMarcarEntregue = async (v) => {
+  const handleMarcarEntregue = useCallback(async (v) => {
     const atualizada = {
       ...v,
       tipoEntrega: 'Imediata',
@@ -358,9 +532,9 @@ export default function App() {
     await updateVenda(atualizada);
     await carregarVendas();
     showToast('Entrega concluída!');
-  };
+  }, [showToast]);
 
-  const handleCancelarVenda = (v) => {
+  const handleCancelarVenda = useCallback((v) => {
     setModal({
       isOpen: true,
       title: 'Cancelar Venda',
@@ -375,11 +549,11 @@ export default function App() {
         };
         await updateVenda(atualizada);
         await carregarVendas();
-        setModal({ ...modal, isOpen: false });
+        setModal((prev) => ({ ...prev, isOpen: false }));
         showToast('Venda cancelada.', 'warning');
       }
     });
-  };
+  }, [showToast]);
 
   const handleBackup = () => {
     const dadosStr = JSON.stringify(vendas);
@@ -419,7 +593,7 @@ export default function App() {
           }
         };
         reader.readAsText(file);
-        setModal({ ...modal, isOpen: false });
+        setModal((prev) => ({ ...prev, isOpen: false }));
       }
     });
   };
@@ -433,202 +607,6 @@ export default function App() {
     const [y, m] = activeMonth.split('-').map(Number);
     const d = new Date(y, m);
     setActiveMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  };
-
-  const FormView = () => {
-    const valorSeguro = Number(formData.valor) || 0;
-    const entradaValor = toMoney(formData.valorEntrada);
-    const entradaSegura = Number.isNaN(entradaValor) ? valorSeguro : entradaValor;
-    const faltaPagar = Math.max(0, valorSeguro - entradaSegura);
-    const comissaoEstimada = valorSeguro * (Number(formData.percentual) / 100);
-
-    return (
-      <div className="p-4 max-w-md mx-auto bg-white rounded-2xl shadow-sm border mt-4 pb-40">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-extrabold text-gray-900">{editingId ? 'Editar Venda' : 'Nova Venda'}</h2>
-          <button onClick={() => { setEditingId(null); limparForm(); setView('dashboard'); }} className="p-2 bg-gray-100 rounded-full text-gray-500">
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Data</label>
-              <input type="date" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })} required />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</label>
-              <input type="text" className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" placeholder="Nome" value={formData.cliente} onChange={(e) => setFormData({ ...formData, cliente: e.target.value })} required />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Produtos / Descrição</label>
-            <textarea className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-medium" rows="2" placeholder="O que foi vendido?" value={formData.produtos} onChange={(e) => setFormData({ ...formData, produtos: e.target.value })} />
-          </div>
-
-          <div className="bg-gray-50 rounded-3xl p-5 space-y-5 border border-gray-100">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Vendido</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
-                  <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-black text-xl text-blue-600" value={formData.valor} onChange={(e) => setFormData({ ...formData, valor: e.target.value })} placeholder="0,00" required />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Entrada</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
-                  <input type="number" step="0.01" className="w-full p-4 pl-10 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorEntrada} onChange={(e) => setFormData({ ...formData, valorEntrada: e.target.value })} placeholder="Total" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Tabela</label>
-                <input type="number" step="0.01" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold" value={formData.valorTabela} onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })} placeholder="Ref." />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Desconto</label>
-                <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.descontoAplicado} onChange={(e) => setFormData({ ...formData, descontoAplicado: e.target.value })}>
-                  {descontoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {faltaPagar > 0 ? (
-              <div className="bg-orange-100/50 border border-orange-200 text-orange-700 p-4 rounded-2xl flex justify-between items-center">
-                <span className="text-xs font-black uppercase">Falta Pagar</span>
-                <span className="text-lg font-black">{formatBRL(faltaPagar)}</span>
-              </div>
-            ) : (
-              <div className="bg-green-100/50 border border-green-200 text-green-700 p-4 rounded-2xl flex justify-between items-center">
-                <span className="text-xs font-black uppercase">Status</span>
-                <span className="text-sm font-black">Totalmente Pago ✅</span>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Comissão</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[3, 4, 5, 6].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, percentual: String(n) })}
-                  className={`py-3 rounded-2xl font-black transition-all border-2 ${Number(formData.percentual) === n ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 scale-105' : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
-                >
-                  {n}%
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Forma de Pagamento</label>
-            <select className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold bg-white" value={formData.pagamentoDetalhe} onChange={(e) => setFormData({ ...formData, pagamentoDetalhe: e.target.value })}>
-              {pagamentoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-
-          {faltaPagar > 0 && (
-            <div className="bg-orange-50/50 border-2 border-orange-100 rounded-3xl p-5 space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Motivo da Pendência</label>
-                <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold bg-white" value={formData.motivoPendencia} onChange={(e) => setFormData({ ...formData, motivoPendencia: e.target.value })}>
-                  {motivoPendenciaOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Observação Obrigatória</label>
-                <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" placeholder="Ex: Cliente paga dia 10" value={formData.pendingObservation} onChange={(e) => setFormData({ ...formData, pendingObservation: e.target.value })} required />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Previsão de Pagamento</label>
-                <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-orange-300 outline-none transition-all font-bold" value={formData.previsaoPagamento} onChange={(e) => setFormData({ ...formData, previsaoPagamento: e.target.value })} />
-              </div>
-            </div>
-          )}
-
-          <div className="bg-blue-50/50 border-2 border-blue-100 rounded-3xl p-5 space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Tipo de Entrega</label>
-              <select className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold bg-white" value={formData.tipoEntrega} onChange={(e) => handleTipoEntregaChange(e.target.value)}>
-                <option value="Imediata">📦 Imediata</option>
-                <option value="Agendada">📅 Agendada</option>
-                <option value="Futura">🏭 Futura (Produção)</option>
-              </select>
-            </div>
-
-            {formData.tipoEntrega === 'Agendada' && (
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Data da Entrega</label>
-                <input type="date" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.dataEntrega} onChange={(e) => setFormData({ ...formData, dataEntrega: e.target.value })} required />
-              </div>
-            )}
-
-            {formData.tipoEntrega === 'Futura' && (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Prazo de Entrega (Dias)</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[15, 20, 30, 35].map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, deliveryDeadlineDays: String(d) })}
-                        className={`py-3 rounded-xl font-black transition-all border-2 ${Number(formData.deliveryDeadlineDays) === d ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-white text-gray-400'}`}
-                      >
-                        {d}d
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Motivo / Detalhes</label>
-                  <input type="text" className="w-full p-4 border-2 border-white rounded-2xl focus:border-blue-300 outline-none transition-all font-bold" value={formData.deliveryReason} onChange={(e) => setFormData({ ...formData, deliveryReason: e.target.value })} placeholder="Ex: Aguardando obra" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-6 flex justify-between items-center">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-green-600 uppercase tracking-wider">Comissão Prevista</span>
-              <div className="text-3xl font-black text-green-700">{formatBRL(comissaoEstimada)}</div>
-            </div>
-          </div>
-
-          {/* ACTION BAR FIXA PREMIUM (MOBILE) */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[100] max-w-xl mx-auto flex gap-3">
-            <button
-              type="button"
-              onClick={() => { setEditingId(null); limparForm(); setView('dashboard'); }}
-              className="flex-1 h-[52px] rounded-2xl font-black text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all flex items-center justify-center gap-2 active:scale-95"
-            >
-              <X size={20} /> Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex-[2.5] h-[52px] rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:scale-100"
-            >
-              {isSaving ? (
-                <Loader2 size={24} className="animate-spin" />
-              ) : (
-                <>
-                  <Save size={20} /> {editingId ? 'Atualizar Venda' : 'Confirmar Venda'}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    );
   };
 
   const VendaCard = ({ v }) => {
@@ -795,7 +773,7 @@ export default function App() {
 
         <div className="pt-6 border-t border-gray-50 flex flex-col items-center gap-2">
           <div className="px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-            Versão Premium v5.2
+            Versão Premium v5.3
           </div>
           <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">Offline-First Storage</p>
         </div>
@@ -806,7 +784,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-gray-900 pb-safe font-sans selection:bg-blue-100">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-      <ConfirmModal {...modal} onCancel={() => setModal({ ...modal, isOpen: false })} />
+      <ConfirmModal {...modal} onCancel={() => setModal((prev) => ({ ...prev, isOpen: false }))} />
 
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 p-5 sticky top-0 z-30 flex justify-between items-center max-w-xl mx-auto">
         <div className="flex items-center gap-2">
@@ -822,7 +800,16 @@ export default function App() {
 
       <main className="max-w-xl mx-auto">
         {view === 'dashboard' && <DashboardView />}
-        {view === 'add' && <FormView />}
+        {view === 'add' && (
+          <FormView 
+            formData={formData} 
+            setFormData={setFormData} 
+            onSave={handleSave} 
+            onCancel={() => { setEditingId(null); limparForm(); setView('dashboard'); }}
+            isSaving={isSaving}
+            editingId={editingId}
+          />
+        )}
         {view === 'reports' && <ReportsView />}
       </main>
 
