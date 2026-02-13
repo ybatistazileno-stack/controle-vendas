@@ -1,1185 +1,652 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { addVenda, getVendas, deleteVenda, updateVenda, addVendasBatch } from './db';
-import { verificarMigracao } from './utils/migration-v5';
-import { useSalesMetricsV5 } from './hooks/useSalesMetricsV5';
-import { KPICardsV5 } from './components/KPICardsV5';
-import { TabNavigatorV5 } from './components/TabNavigatorV5';
-import { PendenciasTabV5 } from './components/PendenciasTabV5';
-import { EntregasTabV5 } from './components/EntregasTabV5';
-import { Trash2, Edit, Plus, List, BarChart, Filter, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Search, Filter, DollarSign, TrendingUp, Clock, Package } from 'lucide-react';
+import { initDB, getAllSales, addSale, updateSale, deleteSale } from './db';
 
-// --- UTILITÁRIOS ---
-const formatBRL = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-const toMoney = (val) => {
-  if (val === null || val === undefined) return NaN;
-  if (String(val).trim() === '') return NaN;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : NaN;
-};
-
-
-// Data local (evita bugs de fuso horário causados por toISOString/UTC)
-const getLocalToday = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const getLocalMonthKey = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-};
-
-const formatLocalISODate = (dateObj) => {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-const isIsoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
-
-// ICS sanitize (RFC5545 basic escaping)
-const sanitizeIcsText = (str) => {
-  if (!str) return '';
-  return String(str)
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/,/g, '\\,')
-    .replace(/;/g, '\\;')
-    .trim();
-};
-
-const normalizarPagamentoDetalhe = (str) => {
-  const s = String(str || '').toLowerCase();
-  if (s.includes('pix') && s.includes('qr')) return 'Pix • QR Code';
-  if (s.includes('pix') && s.includes('cnpj')) return 'Pix • CNPJ';
-  if (s.includes('deb')) return 'Débito';
-  if (s.includes('din')) return 'Dinheiro';
-  const m = s.match(/(\d+)\s*x/);
-  if (s.includes('cred') || s.includes('créd') || s.includes('cart')) {
-    const parcelas = m ? Math.min(12, Math.max(1, Number(m[1]))) : 1;
-    return `Crédito (${parcelas}x)`;
-  }
-  return 'Pix • QR Code';
-};
-
-const descontoOptions = ['Sem desconto', 'Preço de tabela', 'Acima da tabela', '10%', '15%'];
-const pagamentoOptions = ['Pix • QR Code', 'Pix • CNPJ', 'Crédito (1x)', 'Crédito (2x)', 'Crédito (3x)', 'Crédito (4x)', 'Crédito (5x)', 'Crédito (6x)', 'Crédito (7x)', 'Crédito (8x)', 'Crédito (9x)', 'Crédito (10x)', 'Crédito (11x)', 'Crédito (12x)', 'Débito', 'Dinheiro'];
-
-const motivoPendenciaOptions = [
-  { value: 'aguardando_cartao', label: '💳 Aguardando cartão virar' },
-  { value: 'pagamento_cliente', label: '👤 Aguardando pagamento do cliente' },
-  { value: 'parcelado', label: '📅 Pagamento parcelado' },
-  { value: 'aprovacao', label: '✅ Aguardando aprovação' },
-  { value: 'outro', label: '🔹 Outro' },
-];
-
-export default function App() {
-  const [view, setView] = useState('dashboard'); // dashboard | add | reports
-  const [vendas, setVendas] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState('vendas'); // vendas | pendencias | entregas
-  const [activeMonth, setActiveMonth] = useState(() => localStorage.getItem('active_month') || getLocalMonthKey());
-
+function App() {
+  const [sales, setSales] = useState([]);
+  const [activeTab, setActiveTab] = useState('vendas');
+  const [activeMonth, setActiveMonth] = useState(() => {
+    const saved = localStorage.getItem('active_month');
+    if (saved) return saved;
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [editingSale, setEditingSale] = useState(null);
+  
+  // Formulário - CORREÇÃO: Todas as variáveis estão declaradas
   const [formData, setFormData] = useState({
-    data: getLocalToday(),
     cliente: '',
-    produtos: '',
-
-    valor: '',
-    valorEntrada: '',
-    percentual: '5',
-
-    // v5 fields
+    produto: '',
     valorTabela: '',
-    descontoAplicado: 'Sem desconto',
-    pagamentoDetalhe: 'Pix • QR Code',
-
-    // pendency extra
-    motivoPendencia: 'aguardando_cartao',
-    textoMotivo: '',
-    previsaoPagamento: '',
-
-    // delivery
-    tipoEntrega: 'Imediata', // Imediata | Agendada | Futura
-    dataEntrega: '',
-    motivoEntrega: '',
-
-    // lifecycle
-    status: 'Ativa',
-    motivoCancelamento: '',
-    dataCancelamento: null,
-
-    criadoEm: null,
-    atualizadoEm: null,
-    pagoEm: null,
+    desconto: '',
+    valorFinal: '',
+    comissao: '',
+    dataPrevista: '',
+    dataEntregue: '',
+    pagamento: {
+      sinal: '',
+      dataSinal: '',
+      restante: '',
+      dataRestante: '',
+      formaPagamento: 'dinheiro'
+    },
+    status: 'concluida',
+    pendenciaMotivo: '',
+    entregaFuturaMotivo: '',
+    observacoes: ''
   });
 
-  // Meta mensal (persistida por mês no localStorage)
-  const goalKey = (month) => `cv_goal_${month}`;
-  const [monthlyGoal, setMonthlyGoal] = useState(() => {
-    try {
-      const saved = localStorage.getItem(goalKey(new Date().toISOString().slice(0, 7)));
-      const n = Number(saved);
-      return Number.isFinite(n) ? n : 10000; // padrão
-    } catch {
-      return 10000;
-    }
-  });
-
-  // Quando mudar o mês ativo, carregar a meta daquele mês (ou manter padrão)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(goalKey(activeMonth));
-      const n = Number(saved);
-      setMonthlyGoal(Number.isFinite(n) ? n : 10000);
-    } catch {
-      setMonthlyGoal(10000);
-    }
-  }, [activeMonth]);
-
-  const [filtros, setFiltros] = useState({
-    cliente: '',
-    dataIni: '',
-    dataFim: '',
-    percentual: '',
-  });
-
-  // Init: migration + load
-  useEffect(() => {
-    let isMounted = true;
-
-    const init = async () => {
-      try {
-        await verificarMigracao();
-      } catch (e) {
-        console.warn('Migração falhou (seguindo):', e);
-      }
-
-      const dados = await getVendas();
-      if (!isMounted) return;
-
-      dados.sort((a, b) => {
-        const dateA = new Date(a.data + 'T00:00:00');
-        const dateB = new Date(b.data + 'T00:00:00');
-        return dateB - dateA || (b.id || 0) - (a.id || 0);
-      });
-      setVendas(dados);
-    };
-
-    init();
-    return () => { isMounted = false; };
+    initDB().then(() => loadSales());
   }, []);
 
   useEffect(() => {
     localStorage.setItem('active_month', activeMonth);
   }, [activeMonth]);
 
-  const carregarVendas = async () => {
-    const dados = await getVendas();
-    dados.sort((a, b) => {
-      const dateA = new Date(a.data + 'T00:00:00');
-      const dateB = new Date(b.data + 'T00:00:00');
-      return dateB - dateA || (b.id || 0) - (a.id || 0);
-    });
-    setVendas(dados);
+  const loadSales = async () => {
+    const data = await getAllSales();
+    setSales(data);
   };
 
-  const limparForm = () => {
-    setFormData((prev) => ({
-      ...prev,
-      data: getLocalToday(),
-      cliente: '',
-      produtos: '',
-      valor: '',
-      valorEntrada: '',
-      percentual: '5',
-
-      valorTabela: '',
-      descontoAplicado: 'Sem desconto',
-      pagamentoDetalhe: 'Pix • QR Code',
-
-      motivoPendencia: 'aguardando_cartao',
-      textoMotivo: '',
-      previsaoPagamento: '',
-
-      tipoEntrega: 'Imediata',
-      dataEntrega: '',
-      motivoEntrega: '',
-
-      status: 'Ativa',
-      motivoCancelamento: '',
-      dataCancelamento: null,
-
-      criadoEm: null,
-      atualizadoEm: null,
-      pagoEm: null,
-    }));
+  const handleMonthChange = (direction) => {
+    const [year, month] = activeMonth.split('-').map(Number);
+    const date = new Date(year, month - 1, 1);
+    date.setMonth(date.getMonth() + direction);
+    const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    setActiveMonth(newMonth);
   };
 
-  const handleTipoEntregaChange = (novoTipo) => {
-    setFormData((prev) => ({
-      ...prev,
-      tipoEntrega: novoTipo,
-      dataEntrega: novoTipo === 'Agendada' ? prev.dataEntrega : '',
-      motivoEntrega: novoTipo === 'Futura' ? prev.motivoEntrega : '',
-    }));
+  const calculateKPIs = () => {
+    const monthSales = sales.filter(s => {
+      const saleMonth = s.dataEntregue ? s.dataEntregue.substring(0, 7) : s.dataPrevista.substring(0, 7);
+      return saleMonth === activeMonth;
+    });
+
+    const vendido = monthSales
+      .filter(s => s.status === 'concluida')
+      .reduce((sum, s) => sum + (parseFloat(s.valorFinal) || 0), 0);
+
+    const comissao = monthSales
+      .filter(s => s.status === 'concluida')
+      .reduce((sum, s) => sum + (parseFloat(s.comissao) || 0), 0);
+
+    const recebido = monthSales
+      .filter(s => s.status === 'concluida')
+      .reduce((sum, s) => {
+        const sinal = parseFloat(s.pagamento?.sinal) || 0;
+        const restante = parseFloat(s.pagamento?.restante) || 0;
+        const dataRestante = s.pagamento?.dataRestante;
+        if (dataRestante && dataRestante.substring(0, 7) <= activeMonth) {
+          return sum + sinal + restante;
+        }
+        return sum + sinal;
+      }, 0);
+
+    const pendencias = monthSales
+      .filter(s => s.status === 'pendencia')
+      .reduce((sum, s) => sum + (parseFloat(s.valorFinal) || 0), 0);
+
+    const descontos = monthSales
+      .reduce((sum, s) => sum + (parseFloat(s.desconto) || 0), 0);
+
+    return { vendido, comissao, recebido, pendencias, descontos };
   };
 
-  const metricas = useSalesMetricsV5(vendas, activeMonth);
+  const kpis = calculateKPIs();
 
-  const separarVendas = useMemo(() => {
-    // IMPORTANT: Abas de Pendências e Entregas NÃO podem depender do mês ativo.
-    // - Pendências: mostram todas as dívidas em aberto (restante > 0), mesmo de meses anteriores.
-    // - Entregas: mostram todas as entregas não concluídas (Futura/Agendada), inclusive atrasadas.
-    const vendasAtivas = vendas.filter((v) => v && v.status !== 'Cancelada');
-
-    // Aba "Vendas": filtra pelo mês da DATA DA VENDA (mês ativo)
-    const monthKey = (iso) => String(iso || '').slice(0, 7);
-    const vendasDoMes = vendasAtivas.filter((v) => monthKey(v.data) === activeMonth);
-
-    // Entrega só é considerada concluída quando o usuário marca como entregue
-    const entregue = (v) => v.tipoEntrega === 'Imediata';
-
-    const pendencias = vendasAtivas.filter((v) => (Number(v.restante) || 0) > 0);
-
-    const entregas = vendasAtivas.filter((v) => {
-      if (v.tipoEntrega === 'Futura') return true;
-      if (v.tipoEntrega === 'Agendada' && isIsoDate(v.dataEntrega)) return true;
-      return false;
-    });
-
-    const vendasOk = vendasDoMes.filter((v) => {
-      const quitado = (Number(v.restante) || 0) === 0;
-      return quitado && entregue(v);
-    });
-
-    return { vendasOk, pendencias, entregas };
-  }, [vendas, activeMonth]);
-
-  const vendasFiltradas = useMemo(() => {
-    const { vendasOk, pendencias, entregas } = separarVendas;
-    const all = activeTab === 'vendas' ? vendasOk : activeTab === 'pendencias' ? pendencias : entregas;
-
-    const matchCliente = (v) => filtros.cliente
-      ? String(v.cliente || '').toLowerCase().includes(filtros.cliente.toLowerCase())
-      : true;
-
-    const matchPerc = (v) => filtros.percentual
-      ? String(v.percentual ?? '') === String(filtros.percentual)
-      : true;
-
-    const matchData = (v) => {
-      if (filtros.dataIni && isIsoDate(v.data) && isIsoDate(filtros.dataIni)) {
-        if (new Date(v.data + 'T00:00:00') < new Date(filtros.dataIni + 'T00:00:00')) return false;
-      }
-      if (filtros.dataFim && isIsoDate(v.data) && isIsoDate(filtros.dataFim)) {
-        if (new Date(v.data + 'T00:00:00') > new Date(filtros.dataFim + 'T00:00:00')) return false;
-      }
-      return true;
-    };
-
-    return all.filter((v) => matchCliente(v) && matchPerc(v) && matchData(v));
-  }, [separarVendas, activeTab, filtros]);
-
-  // --- SAVE (blindado) ---
-  const handleSave = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const valorNum = toMoney(formData.valor);
-    if (Number.isNaN(valorNum) || valorNum <= 0) {
-      alert('Erro: Valor da venda inválido.');
-      return;
-    }
-
-    if (!formData.cliente.trim()) {
-      alert('Erro: Nome do cliente é obrigatório.');
-      return;
-    }
-
-    // valorTabela é referência (não entra nos cálculos), mas deve ser coerente
-    let valorTabela = toMoney(formData.valorTabela);
-    if (!Number.isFinite(valorTabela) || valorTabela <= 0) valorTabela = valorNum;
-
-    // Entrada
-    const isEntradaVazia = formData.valorEntrada === null || formData.valorEntrada === undefined || String(formData.valorEntrada).trim() === '';
-    let entradaNum = isEntradaVazia ? valorNum : toMoney(formData.valorEntrada);
-
-    if (Number.isNaN(entradaNum) || entradaNum < 0) {
-      alert('Erro: Entrada inválida.');
-      return;
-    }
-    if (entradaNum > valorNum) {
-      alert(`Erro: Entrada (${formatBRL(entradaNum)}) maior que total (${formatBRL(valorNum)}).`);
-      return;
-    }
-
-    const restante = round2(valorNum - entradaNum);
-
-    // Entrega
-    if (formData.tipoEntrega === 'Agendada') {
-      if (!isIsoDate(formData.dataEntrega)) {
-        alert('Erro: Para entrega Agendada, selecione uma data válida.');
-        return;
+    
+    const saleData = {
+      ...formData,
+      valorTabela: parseFloat(formData.valorTabela) || 0,
+      desconto: parseFloat(formData.desconto) || 0,
+      valorFinal: parseFloat(formData.valorFinal) || 0,
+      comissao: parseFloat(formData.comissao) || 0,
+      pagamento: {
+        ...formData.pagamento,
+        sinal: parseFloat(formData.pagamento.sinal) || 0,
+        restante: parseFloat(formData.pagamento.restante) || 0
       }
-    }
-
-    // Comissão
-    const percNum = Number(formData.percentual);
-    if (!Number.isFinite(percNum) || percNum < 0 || percNum > 100) {
-      alert('Erro: Percentual de comissão inválido.');
-      return;
-    }
-    const comissao = round2(valorNum * (percNum / 100));
-
-    // statusPagamento
-    let statusPagamento = 'Pago';
-    if (restante > 0) statusPagamento = 'Pendente';
-    if (restante === valorNum) statusPagamento = 'Totalmente Pendente';
-
-    // pagoEm coerente
-    let pagoEm = formData.pagoEm;
-    if (restante > 0) pagoEm = null;
-    else if (restante === 0 && !pagoEm) pagoEm = new Date().toISOString();
-
-    // Pêndencia extra
-    let motivoPendencia = null;
-    let textoMotivo = '';
-    let previsaoPagamento = '';
-    if (restante > 0) {
-      motivoPendencia = formData.motivoPendencia || 'aguardando_cartao';
-      textoMotivo = motivoPendencia === 'outro' ? String(formData.textoMotivo || '').trim() : '';
-      previsaoPagamento = isIsoDate(formData.previsaoPagamento) ? formData.previsaoPagamento : '';
-    }
-
-    // Entrega futura motivo
-    let motivoEntrega = '';
-    if (formData.tipoEntrega === 'Futura') {
-      motivoEntrega = String(formData.motivoEntrega || '').trim();
-    }
-
-    const pagamentoDetalhe = normalizarPagamentoDetalhe(formData.pagamentoDetalhe);
-
-    const vendaObj = {
-      data: formData.data,
-      cliente: formData.cliente.trim(),
-      produtos: formData.produtos,
-
-      valor: valorNum,
-      valorEntrada: entradaNum,
-      restante,
-      percentual: percNum,
-      comissao,
-      statusPagamento,
-
-      valorTabela,
-      descontoAplicado: formData.descontoAplicado || 'Sem desconto',
-      pagamentoDetalhe,
-
-      motivoPendencia,
-      textoMotivo,
-      previsaoPagamento,
-
-      tipoEntrega: formData.tipoEntrega,
-      dataEntrega: formData.tipoEntrega === 'Agendada' ? formData.dataEntrega : '',
-      motivoEntrega,
-
-      status: 'Ativa',
-      motivoCancelamento: '',
-      dataCancelamento: null,
-
-      criadoEm: formData.criadoEm || new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-      pagoEm,
     };
 
-    try {
-      if (editingId) {
-        vendaObj.id = editingId;
-        await updateVenda(vendaObj);
-      } else {
-        await addVenda(vendaObj);
-      }
-
-      limparForm();
-      setEditingId(null);
-      await carregarVendas();
-      setView('dashboard');
-      setActiveTab('vendas');
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao salvar. Tente novamente.');
+    if (editingSale) {
+      await updateSale(editingSale.id, saleData);
+    } else {
+      await addSale(saleData);
     }
+
+    await loadSales();
+    setShowModal(false);
+    resetForm();
   };
 
-  const handleEdit = (venda) => {
+  const resetForm = () => {
     setFormData({
-      ...formData,
-      ...venda,
-      valor: String(venda.valor ?? ''),
-      valorEntrada: String(venda.valorEntrada === 0 ? '0' : (venda.valorEntrada ?? '')),
-      valorTabela: String(venda.valorTabela ?? ''),
-      percentual: String(venda.percentual ?? '5'),
-      descontoAplicado: venda.descontoAplicado || 'Sem desconto',
-      pagamentoDetalhe: venda.pagamentoDetalhe || 'Pix • QR Code',
-      previsaoPagamento: venda.previsaoPagamento || '',
-      textoMotivo: venda.textoMotivo || '',
-      motivoPendencia: venda.motivoPendencia || 'aguardando_cartao',
-      tipoEntrega: venda.tipoEntrega || 'Imediata',
-      dataEntrega: venda.dataEntrega || '',
-      motivoEntrega: venda.motivoEntrega || '',
-      criadoEm: venda.criadoEm || null,
-      pagoEm: venda.pagoEm || null,
+      cliente: '',
+      produto: '',
+      valorTabela: '',
+      desconto: '',
+      valorFinal: '',
+      comissao: '',
+      dataPrevista: '',
+      dataEntregue: '',
+      pagamento: {
+        sinal: '',
+        dataSinal: '',
+        restante: '',
+        dataRestante: '',
+        formaPagamento: 'dinheiro'
+      },
+      status: 'concluida',
+      pendenciaMotivo: '',
+      entregaFuturaMotivo: '',
+      observacoes: ''
     });
-    setEditingId(venda.id);
-    setView('add');
+    setEditingSale(null);
+  };
+
+  const handleEdit = (sale) => {
+    setEditingSale(sale);
+    setFormData(sale);
+    setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Excluir esta venda? Isso é irreversível.')) return;
-    await deleteVenda(id);
-    await carregarVendas();
-  };
-
-  const handleCancelarVenda = async (venda) => {
-    const motivo = prompt('Motivo do cancelamento:');
-    if (!motivo) return;
-
-    if (!confirm(`Confirmar cancelamento?\n\nCliente: ${venda.cliente}\nValor: ${formatBRL(venda.valor)}\nMotivo: ${motivo}`)) return;
-
-    const vendaCancelada = {
-      ...venda,
-      status: 'Cancelada',
-      motivoCancelamento: motivo,
-      dataCancelamento: getLocalToday(),
-      atualizadoEm: new Date().toISOString(),
-    };
-
-    await updateVenda(vendaCancelada);
-    await carregarVendas();
-  };
-
-  const handleReceberRestante = async (venda) => {
-    if (!confirm(`Receber restante de ${venda.cliente}?\nRestante: ${formatBRL(venda.restante)}`)) return;
-
-    const atualizada = {
-      ...venda,
-      valorEntrada: venda.valor,
-      restante: 0,
-      statusPagamento: 'Pago',
-      motivoPendencia: null,
-      textoMotivo: '',
-      previsaoPagamento: '',
-      pagoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    };
-
-    await updateVenda(atualizada);
-    await carregarVendas();
-  };
-
-  const handleMarcarEntregue = async (venda) => {
-    if (!confirm(`Marcar entregue para ${venda.cliente}?`)) return;
-
-    const hoje = getLocalToday();
-    const atualizada = {
-      ...venda,
-      tipoEntrega: 'Imediata',
-      dataEntrega: '',
-      motivoEntrega: '',
-      atualizadoEm: new Date().toISOString(),
-      // mantém histórico de dataEntrega no futuro? não: preferi limpar para consistência
-      // se quiser manter, crie campo dataEntregaReal
-    };
-
-    // Se estava agendada e já passou, ok; se era futura, agora virou entregue.
-    // Mantemos a venda como "final" apenas se também estiver paga (restante 0).
-
-    await updateVenda(atualizada);
-    await carregarVendas();
-  };
-
-  // --- Backup / Restore ---
-  const handleBackup = () => {
-    const dadosStr = JSON.stringify(vendas);
-    const blob = new Blob([dadosStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `BACKUP_VENDAS_${getLocalToday()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleRestore = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    if (!confirm('Isso adicionará as vendas do arquivo ao banco atual.\nDeseja continuar?')) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const dadosBackup = JSON.parse(event.target.result);
-        if (!Array.isArray(dadosBackup)) throw new Error('Formato inválido');
-
-        let importadas = 0;
-        let ignoradas = 0;
-        let buffer = [];
-        const CHUNK_SIZE = 50;
-        let duplicadas = 0;
-        const existingStrictSignatures = new Set(vendas.map(v => `${v.data}|${String(v.cliente || '').trim()}|${v.valor}|${v.criadoEm || ''}`));
-        const existingLooseSignatures = new Set(vendas.map(v => `${v.data}|${String(v.cliente || '').trim()}|${v.valor}`));
-
-        const flushBuffer = async () => {
-          if (buffer.length === 0) return;
-          try {
-            await addVendasBatch(buffer);
-            importadas += buffer.length;
-          } catch (batchErr) {
-            console.warn('Lote falhou, tentando um por um...', batchErr);
-            for (const v of buffer) {
-              try { await addVenda(v); importadas++; }
-              catch { ignoradas++; }
-            }
-          }
-          buffer = [];
-          await new Promise((r) => setTimeout(r, 0));
-        };
-
-        // Normalização mínima (whitelist + coerência)
-        for (const item of dadosBackup) {
-          const data = isIsoDate(item.data) ? item.data : null;
-          const cliente = typeof item.cliente === 'string' ? item.cliente.trim() : '';
-          const valor = Number(item.valor);
-          if (!data || !cliente || !Number.isFinite(valor) || valor <= 0) { ignoradas++; continue; }
-
-          let valorEntrada = Number(item.valorEntrada);
-          if (!Number.isFinite(valorEntrada) || valorEntrada < 0) valorEntrada = valor;
-          if (valorEntrada > valor) valorEntrada = valor;
-
-          const restante = round2(valor - valorEntrada);
-
-          let percentual = Number(item.percentual);
-          if (!Number.isFinite(percentual) || percentual < 0 || percentual > 100) percentual = 5;
-          const comissao = round2(valor * (percentual / 100));
-
-          let statusPagamento = 'Pago';
-          if (restante > 0) statusPagamento = 'Pendente';
-          if (restante === valor) statusPagamento = 'Totalmente Pendente';
-
-          let pagoEm = item.pagoEm || null;
-          if (restante > 0) pagoEm = null;
-
-          const tipoEntrega = ['Imediata','Agendada','Futura'].includes(item.tipoEntrega) ? item.tipoEntrega : 'Imediata';
-          let dataEntrega = '';
-          if (tipoEntrega === 'Agendada' && isIsoDate(item.dataEntrega)) dataEntrega = item.dataEntrega;
-
-          // v5 fields
-          let valorTabela = Number(item.valorTabela);
-          if (!Number.isFinite(valorTabela) || valorTabela <= 0) valorTabela = valor;
-
-          const descontoAplicado = descontoOptions.includes(item.descontoAplicado) ? item.descontoAplicado : 'Sem desconto';
-          const pagamentoDetalhe = normalizarPagamentoDetalhe(item.pagamentoDetalhe || item.pagamento);
-
-          const motivoPendencia = restante > 0 ? String(item.motivoPendencia || 'aguardando_cartao') : null;
-          const textoMotivo = restante > 0 ? String(item.textoMotivo || '').trim() : '';
-          const previsaoPagamento = restante > 0 && isIsoDate(item.previsaoPagamento) ? item.previsaoPagamento : '';
-
-          const motivoEntrega = tipoEntrega === 'Futura' ? String(item.motivoEntrega || '').trim() : '';
-
-          const vendaNormalizada = {
-            data,
-            cliente,
-            produtos: String(item.produtos || ''),
-            pagamentoDetalhe,
-
-            valor,
-            valorEntrada,
-            restante,
-
-            percentual,
-            comissao,
-            statusPagamento,
-
-            valorTabela,
-            descontoAplicado,
-
-            motivoPendencia,
-            textoMotivo,
-            previsaoPagamento,
-
-            tipoEntrega,
-            dataEntrega,
-            motivoEntrega,
-
-            status: 'Ativa',
-            motivoCancelamento: '',
-            dataCancelamento: null,
-
-            criadoEm: item.criadoEm || new Date().toISOString(),
-            atualizadoEm: new Date().toISOString(),
-            pagoEm,
-          };
-
-          const baseKey = `${vendaNormalizada.data}|${vendaNormalizada.cliente}|${vendaNormalizada.valor}`;
-          const strictKey = `${baseKey}|${vendaNormalizada.criadoEm || ''}`;
-
-          // Deduplicação legacy-proof:
-          // - Se o item tiver criadoEm -> match estrito
-          // - Se NÃO tiver criadoEm (backups antigos) -> match solto (data|cliente|valor)
-          if (vendaNormalizada.criadoEm) {
-            if (existingStrictSignatures.has(strictKey)) { duplicadas++; continue; }
-          } else {
-            if (existingLooseSignatures.has(baseKey)) { duplicadas++; continue; }
-          }
-
-          existingStrictSignatures.add(strictKey);
-          existingLooseSignatures.add(baseKey);
-
-          buffer.push(vendaNormalizada);
-          if (buffer.length >= CHUNK_SIZE) await flushBuffer();
-        }
-
-        await flushBuffer();
-        alert(`Restore concluído!\n✅ ${importadas} importadas\n♻️ ${duplicadas} duplicadas evitadas\n⚠️ ${ignoradas} ignoradas`);
-        await carregarVendas();
-      } catch (err) {
-        console.error(err);
-        alert('Erro ao processar backup. Verifique se o arquivo é um JSON válido.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // --- ICS ---
-  const downloadIcs = (venda) => {
-    if (!venda.dataEntrega || !isIsoDate(venda.dataEntrega)) return;
-
-    let url = null;
-    let link = null;
-
-    try {
-      const dtStart = venda.dataEntrega.replace(/-/g, '');
-      const dateObj = new Date(venda.dataEntrega + 'T00:00:00');
-      dateObj.setDate(dateObj.getDate() + 1);
-      const dtEnd = formatLocalISODate(dateObj).replace(/-/g, '');
-
-      const summary = sanitizeIcsText(`Entrega: ${venda.cliente}`);
-      const description = sanitizeIcsText(`Produtos: ${venda.produtos} • Total: ${formatBRL(venda.valor)} • Restante: ${formatBRL(venda.restante)}`);
-
-      const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-DTSTART;VALUE=DATE:${dtStart}
-DTEND;VALUE=DATE:${dtEnd}
-SUMMARY:${summary}
-DESCRIPTION:${description}
-END:VEVENT
-END:VCALENDAR`;
-
-      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-      url = URL.createObjectURL(blob);
-
-      link = document.createElement('a');
-      link.href = url;
-
-      const clienteSanitizado = (venda.cliente || 'cliente').trim().replace(/\s+/g, '_').toLowerCase();
-      link.setAttribute('download', `entrega_${clienteSanitizado}_${venda.dataEntrega}.ics`);
-
-      document.body.appendChild(link);
-      link.click();
-    } catch (error) {
-      console.error('Erro ao gerar ICS:', error);
-      alert('Não foi possível gerar o arquivo de agenda.');
-    } finally {
-      if (link && document.body.contains(link)) document.body.removeChild(link);
-      if (url) URL.revokeObjectURL(url);
+    if (window.confirm('Tem certeza que deseja excluir esta venda?')) {
+      await deleteSale(id);
+      await loadSales();
     }
   };
 
-  // Month navigation (comparação com meses anteriores)
-  const monthToInt = (m) => {
-    const [y, mo] = m.split('-').map(Number);
-    return y * 12 + (mo - 1);
-  };
-  const intToMonth = (n) => {
-    const y = Math.floor(n / 12);
-    const mo = (n % 12) + 1;
-    return `${String(y).padStart(4,'0')}-${String(mo).padStart(2,'0')}`;
-  };
-  const handlePrevMonth = () => setActiveMonth(intToMonth(monthToInt(activeMonth) - 1));
-  const handleNextMonth = () => setActiveMonth(intToMonth(monthToInt(activeMonth) + 1));
+  const getFilteredSales = () => {
+    let filtered = sales;
 
-  // --- UI (Form/List/Reports) ---
-  const FormView = () => {
-    const valorSeguro = Number(formData.valor) || 0;
-    const entradaValor = toMoney(formData.valorEntrada);
-    const entradaSegura = Number.isNaN(entradaValor) ? valorSeguro : entradaValor;
-    const faltaPagar = Math.max(0, valorSeguro - entradaSegura);
-    const comissaoEstimada = valorSeguro * (Number(formData.percentual) / 100);
+    // Filtro por aba
+    if (activeTab === 'vendas') {
+      filtered = filtered.filter(s => s.status === 'concluida');
+    } else if (activeTab === 'pendencias') {
+      filtered = filtered.filter(s => s.status === 'pendencia');
+    } else if (activeTab === 'entregas') {
+      filtered = filtered.filter(s => s.status === 'entrega_futura');
+    }
 
-    return (
-      <div className="p-4 max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 mt-6 mb-28">
-        <h2 className="text-xl font-extrabold mb-4 text-gray-900">{editingId ? 'Editar Venda' : 'Nova Venda'}</h2>
+    // Filtro de busca
+    if (searchTerm) {
+      filtered = filtered.filter(s =>
+        s.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.produto.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-gray-700">Data</label>
-              <input type="date" className="w-full p-3 border rounded-xl" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })} required />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-700">Cliente</label>
-              <input type="text" className="w-full p-3 border rounded-xl" placeholder="Nome do cliente" value={formData.cliente} onChange={(e) => setFormData({ ...formData, cliente: e.target.value })} required />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-gray-700">Produtos / Descrição</label>
-            <textarea className="w-full p-3 border rounded-xl" rows="3" placeholder="Ex: Colchão Queen + box..." value={formData.produtos} onChange={(e) => setFormData({ ...formData, produtos: e.target.value })} />
-          </div>
-
-          <div className="bg-gray-50 border rounded-2xl p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700">Valor vendido</label>
-                <input type="number" step="0.01" className="w-full p-3 border rounded-xl bg-white font-extrabold" value={formData.valor} onChange={(e) => setFormData({ ...formData, valor: e.target.value })} placeholder="0,00" required />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700">Entrada</label>
-                <input type="number" step="0.01" className="w-full p-3 border rounded-xl bg-white" value={formData.valorEntrada} onChange={(e) => setFormData({ ...formData, valorEntrada: e.target.value })} placeholder="Igual total" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700">Valor de tabela</label>
-                <input type="number" step="0.01" className="w-full p-3 border rounded-xl bg-white" value={formData.valorTabela} onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })} placeholder="Referência" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-700">Desconto aplicado</label>
-                <select className="w-full p-3 border rounded-xl bg-white" value={formData.descontoAplicado} onChange={(e) => setFormData({ ...formData, descontoAplicado: e.target.value })}>
-                  {descontoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {faltaPagar > 0 ? (
-              <div className="bg-orange-50 border border-orange-200 text-orange-800 p-3 rounded-xl text-sm font-bold">
-                Pendência: {formatBRL(faltaPagar)}
-              </div>
-            ) : (
-              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm font-bold">
-                Totalmente pago ✅
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-gray-700">Comissão</label>
-              <select className="w-full p-3 border rounded-xl bg-white" value={formData.percentual} onChange={(e) => setFormData({ ...formData, percentual: e.target.value })}>
-                {[6, 5, 4, 3].map((n) => <option key={n} value={n}>{n}%</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-700">Pagamento</label>
-              <select className="w-full p-3 border rounded-xl bg-white" value={formData.pagamentoDetalhe} onChange={(e) => setFormData({ ...formData, pagamentoDetalhe: e.target.value })}>
-                {pagamentoOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {faltaPagar > 0 && (
-            <div className="bg-white border rounded-2xl p-4 space-y-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700">Motivo da pendência</label>
-                <select className="w-full p-3 border rounded-xl bg-white" value={formData.motivoPendencia} onChange={(e) => setFormData({ ...formData, motivoPendencia: e.target.value })}>
-                  {motivoPendenciaOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              {formData.motivoPendencia === 'outro' && (
-                <input type="text" className="w-full p-3 border rounded-xl" placeholder="Descreva o motivo..." value={formData.textoMotivo} onChange={(e) => setFormData({ ...formData, textoMotivo: e.target.value })} />
-              )}
-              <div>
-                <label className="text-xs font-bold text-gray-700">Previsão de pagamento</label>
-                <input type="date" className="w-full p-3 border rounded-xl" value={formData.previsaoPagamento} onChange={(e) => setFormData({ ...formData, previsaoPagamento: e.target.value })} />
-              </div>
-            </div>
-          )}
-
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
-            <div>
-              <label className="text-xs font-bold text-gray-700">Entrega</label>
-              <select className="w-full p-3 border rounded-xl bg-white" value={formData.tipoEntrega} onChange={(e) => handleTipoEntregaChange(e.target.value)}>
-                <option value="Imediata">📦 Imediata</option>
-                <option value="Agendada">📅 Agendada</option>
-                <option value="Futura">🏭 Futura (produção)</option>
-              </select>
-            </div>
-
-            {formData.tipoEntrega === 'Agendada' && (
-              <div>
-                <label className="text-xs font-bold text-gray-700">Data da entrega</label>
-                <input type="date" className="w-full p-3 border rounded-xl bg-white" value={formData.dataEntrega} onChange={(e) => setFormData({ ...formData, dataEntrega: e.target.value })} required />
-              </div>
-            )}
-
-            {formData.tipoEntrega === 'Futura' && (
-              <div>
-                <label className="text-xs font-bold text-gray-700">Motivo (produção / espera)</label>
-                <input type="text" className="w-full p-3 border rounded-xl bg-white" value={formData.motivoEntrega} onChange={(e) => setFormData({ ...formData, motivoEntrega: e.target.value })} placeholder="Ex: Produção na fábrica / Cliente aguardando obra" />
-              </div>
-            )}
-          </div>
-
-          <div className="bg-gray-50 border rounded-2xl p-4 flex justify-between items-center">
-            <div>
-              <div className="text-xs text-gray-500">Comissão prevista</div>
-              <div className="text-2xl font-extrabold text-green-700">{formatBRL(comissaoEstimada)}</div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {editingId && (
-              <button type="button" onClick={() => { setEditingId(null); limparForm(); setView('dashboard'); }} className="flex-1 bg-gray-200 py-3 rounded-2xl font-extrabold">
-                Cancelar
-              </button>
-            )}
-            <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-extrabold text-lg">
-              Salvar
-            </button>
-          </div>
-        </form>
-      </div>
-    );
+    return filtered;
   };
 
-  const VendaCard = ({ v }) => {
-    return (
-      <div className="bg-white p-4 rounded-2xl shadow-sm border flex flex-col gap-3">
-        <div className="flex justify-between items-start">
-          <div className="min-w-0">
-            <div className="font-extrabold text-gray-900 text-lg truncate">{v.cliente}</div>
-            <div className="text-xs text-gray-500 whitespace-pre-line">{v.produtos}</div>
-          </div>
-          <div className="text-xs bg-gray-100 px-2 py-1 rounded-xl">{new Date(v.data + 'T00:00:00').toLocaleDateString('pt-BR').slice(0,5)}</div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="bg-gray-50 border rounded-xl p-2">
-            <div className="text-xs text-gray-500">Total</div>
-            <div className="font-extrabold">{formatBRL(v.valor)}</div>
-          </div>
-          <div className="bg-gray-50 border rounded-xl p-2">
-            <div className="text-xs text-gray-500">Comissão ({v.percentual}%)</div>
-            <div className="font-extrabold text-green-700">{formatBRL(v.comissao)}</div>
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-2 text-sm">
-          <div className="flex justify-between">
-            <span className="font-bold">Pagamento</span>
-            <span className="text-gray-700">{v.pagamentoDetalhe}</span>
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="font-bold">Desconto</span>
-            <span className="text-gray-700">{v.descontoAplicado}</span>
-          </div>
-        </div>
-
-        {v.tipoEntrega === 'Agendada' && v.dataEntrega && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-2 text-sm flex justify-between items-center">
-            <span className="font-bold">Entrega: {new Date(v.dataEntrega + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-            <button type="button" onClick={() => downloadIcs(v)} className="text-blue-700 font-bold flex items-center gap-1">
-              <Calendar size={18} /> ICS
-            </button>
-          </div>
-        )}
-
-        <div className="flex justify-between items-center pt-2 border-t">
-          <div className="text-xs text-gray-500">
-            Status: <span className="font-bold">{v.statusPagamento}</span>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => handleEdit(v)} className="text-blue-600"><Edit size={18} /></button>
-            <button onClick={() => handleDelete(v.id)} className="text-red-600"><Trash2 size={18} /></button>
-          </div>
-        </div>
-      </div>
-    );
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value || 0);
   };
 
-  const UpcomingDeliveries = () => {
-  const entregas = separarVendas.entregas
-    .filter((v) => (v.entregaFutura === true || v.dataEntrega) && !v.entregue)
-    .slice()
-    .sort((a, b) => String(a.dataEntrega || '').localeCompare(String(b.dataEntrega || '')));
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('pt-BR');
+  };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-extrabold text-slate-900">Próximas Entregas</h3>
-        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-          {entregas.length}
-        </span>
-      </div>
-
-      <div className="mt-4 max-h-[420px] overflow-auto pr-1 space-y-3">
-        {entregas.length === 0 && (
-          <div className="text-sm text-slate-500 text-center py-6">Sem entregas futuras.</div>
-        )}
-
-        {entregas.map((v) => (
-          <div key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-extrabold text-slate-900 truncate">{v.cliente || 'Cliente'}</p>
-                <p className="text-xs text-slate-600 mt-1 line-clamp-2">{v.produtos || ''}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-xs font-semibold text-slate-500">Entrega</p>
-                <p className="text-sm font-extrabold text-slate-800">
-                  {v.dataEntrega ? new Date(v.dataEntrega).toLocaleDateString('pt-BR') : 'Futura'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleEdit?.(v)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarcarEntregue?.(v)}
-                className="flex-1 rounded-xl bg-emerald-600 text-white px-3 py-2 text-xs font-extrabold shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition"
-              >
-                Marcar entregue
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const DashboardView = () => (
-  <div className="pb-28">
-    <div className="space-y-6">
-      <KPICardsV5
-        metricas={metricas}
-        goal={goal}
-        onChangeGoal={setGoal}
-        onPrevMonth={handlePrevMonth}
-        onNextMonth={handleNextMonth}
-        monthLabel={monthLabel}
-      />
-
-      {/* Filtros */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Pesquisar cliente..."
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={filtros.cliente}
-            onChange={(e) => setFiltros({ ...filtros, cliente: e.target.value })}
-          />
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className={[
-              "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 font-extrabold shadow-sm transition active:scale-[0.98]",
-              showFilters
-                ? "bg-blue-600 text-white"
-                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
-            ].join(" ")}
-          >
-            <Filter size={18} />
-            Filtros
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltros({ cliente: '', dataIni: '', dataFim: '', percentual: '' })}
-            className="inline-flex items-center justify-center rounded-2xl px-4 py-3 font-extrabold text-blue-600 hover:bg-blue-50 active:scale-[0.98] transition"
-          >
-            Limpar
-          </button>
-        </div>
-
-        {showFilters && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">De</label>
-              <input
-                type="date"
-                className="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                value={filtros.dataIni}
-                onChange={(e) => setFiltros({ ...filtros, dataIni: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Até</label>
-              <input
-                type="date"
-                className="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                value={filtros.dataFim}
-                onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">% comissão</label>
-              <select
-                className="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                value={filtros.percentual}
-                onChange={(e) => setFiltros({ ...filtros, percentual: e.target.value })}
-              >
-                <option value="">Todas</option>
-                {[6, 5, 4, 3].map((n) => (
-                  <option key={n} value={n}>
-                    {n}%
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-500">
-                Use filtros para refinar a lista.
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-        {/* Coluna esquerda */}
-        <div className="space-y-4">
-          <TabNavigatorV5
-            activeTab={activeTab}
-            onChange={setActiveTab}
-            counts={{
-              vendas: separarVendas.vendasOk.length,
-              pendencias: separarVendas.pendencias.length,
-              entregas: separarVendas.entregas.length,
-            }}
-          />
-
-          {activeTab === 'vendas' && (
-            <div className="space-y-3">
-              {vendasFiltradas.length === 0 && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-slate-500 shadow-sm">
-                  Nenhuma venda finalizada neste mês.
-                </div>
-              )}
-              {vendasFiltradas.map((v) => (
-                <VendaCard key={v.id} v={v} />
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'pendencias' && (
-            <PendenciasTabV5
-              vendas={vendasFiltradas}
-              onReceberRestante={handleReceberRestante}
-              onEdit={handleEdit}
-              onCancel={handleCancelarVenda}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {activeTab === 'entregas' && (
-            <EntregasTabV5
-              vendas={vendasFiltradas}
-              onMarcarEntregue={handleMarcarEntregue}
-              onEdit={handleEdit}
-              onCancel={handleCancelarVenda}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {/* Sidebar no mobile (abaixo) */}
-          <div className="lg:hidden">
-            <UpcomingDeliveries />
-          </div>
-        </div>
-
-        {/* Coluna direita (desktop) */}
-        <div className="hidden lg:block sticky top-24">
-          <UpcomingDeliveries />
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-const ReportsView = () => (
-    <div className="pb-28 max-w-7xl mx-auto px-4 lg:px-6">
-      <h2 className="text-2xl font-extrabold mb-4">Backup & Dados</h2>
-
-      <div className="bg-white border rounded-2xl p-4 space-y-3">
-        <button onClick={handleBackup} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-extrabold shadow-sm">
-          ☁️ Fazer Backup
-        </button>
-
-        <label className="w-full bg-indigo-50 border border-indigo-200 text-indigo-700 py-3 rounded-2xl flex justify-center cursor-pointer font-extrabold">
-          📥 Restaurar Backup
-          <input type="file" accept=".json" onChange={handleRestore} className="hidden" />
-        </label>
-
-        <p className="text-xs text-center text-gray-500">Versão: v5.0 (offline-first)</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-safe">
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 text-white py-5 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 flex items-center justify-between font-extrabold">
-          <div>
-            <div className="text-xl tracking-tight">Controle de Vendas</div>
-            <div className="text-xs text-white/80 font-semibold">Dashboard premium • Offline-first</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-white/15 border border-white/20 px-3 py-1 rounded-full font-bold">Admin</span>
-            <span className="text-xs bg-blue-900/30 border border-white/15 px-3 py-1 rounded-full font-mono">v5.0</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-900">Controle de Vendas v5.0</h1>
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <Plus size={20} />
+              Nova Venda
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-6">
-        {view === 'dashboard' && <DashboardView />}
-        {view === 'add' && <FormView />}
-        {view === 'reports' && <ReportsView />}
-      </main>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* KPIs */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-700">Resumo do Mês</h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleMonthChange(-1)}
+                className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="font-semibold text-slate-900 min-w-[120px] text-center">
+                {new Date(activeMonth + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </span>
+              <button
+                onClick={() => handleMonthChange(1)}
+                className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
 
-      <nav className="fixed bottom-0 w-full bg-white/95 backdrop-blur border-t border-slate-200 flex justify-around p-3 z-40 lg:hidden pb-6 shadow-[0_-8px_20px_-12px_rgba(15,23,42,0.35)]">
-        <button onClick={() => { setView('dashboard'); setActiveTab('vendas'); }} className={view === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}>
-          <BarChart />
-        </button>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <DollarSign className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Vendido</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(kpis.vendido)}</p>
+                </div>
+              </div>
+            </div>
 
-        <button onClick={() => { limparForm(); setEditingId(null); setView('add'); }} className="bg-blue-600 text-white p-3 rounded-full -mt-8 shadow-lg active:scale-95 transition-transform">
-          <Plus />
-        </button>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <TrendingUp className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Comissão</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(kpis.comissao)}</p>
+                </div>
+              </div>
+            </div>
 
-        <button onClick={() => setView('reports')} className={view === 'reports' ? 'text-blue-600' : 'text-gray-400'}>
-          <List />
-        </button>
-      </nav>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <DollarSign className="text-purple-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Recebido</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(kpis.recebido)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Clock className="text-orange-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Pendências</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(kpis.pendencias)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Package className="text-red-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Descontos</p>
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(kpis.descontos)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-slate-200">
+            <nav className="flex gap-4">
+              {[
+                { key: 'vendas', label: 'Vendas Finalizadas' },
+                { key: 'pendencias', label: 'Pendências' },
+                { key: 'entregas', label: 'Entregas Futuras' }
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {/* Search and Filter */}
+        <div className="mb-6 flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Buscar por cliente ou produto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Sales List */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Produto</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Valor</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Comissão</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Data</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {getFilteredSales().map((sale) => (
+                  <tr key={sale.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                      {sale.cliente}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                      {sale.produto}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-semibold">
+                      {formatCurrency(sale.valorFinal)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                      {formatCurrency(sale.comissao)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                      {formatDate(sale.dataEntregue || sale.dataPrevista)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleEdit(sale)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(sale.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-6">
+                {editingSale ? 'Editar Venda' : 'Nova Venda'}
+              </h2>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.cliente}
+                      onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Produto</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.produto}
+                      onChange={(e) => setFormData({ ...formData, produto: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor de Tabela</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={formData.valorTabela}
+                      onChange={(e) => setFormData({ ...formData, valorTabela: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Desconto</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.desconto}
+                      onChange={(e) => setFormData({ ...formData, desconto: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Final</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={formData.valorFinal}
+                      onChange={(e) => setFormData({ ...formData, valorFinal: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Comissão</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={formData.comissao}
+                      onChange={(e) => setFormData({ ...formData, comissao: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Data Prevista</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.dataPrevista}
+                      onChange={(e) => setFormData({ ...formData, dataPrevista: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Data Entregue</label>
+                    <input
+                      type="date"
+                      value={formData.dataEntregue}
+                      onChange={(e) => setFormData({ ...formData, dataEntregue: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="concluida">Concluída</option>
+                      <option value="pendencia">Pendência</option>
+                      <option value="entrega_futura">Entrega Futura</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Pagamento */}
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Pagamento</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Sinal</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.pagamento.sinal}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pagamento: { ...formData.pagamento, sinal: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Data do Sinal</label>
+                      <input
+                        type="date"
+                        value={formData.pagamento.dataSinal}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pagamento: { ...formData.pagamento, dataSinal: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Restante</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.pagamento.restante}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pagamento: { ...formData.pagamento, restante: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Data do Restante</label>
+                      <input
+                        type="date"
+                        value={formData.pagamento.dataRestante}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pagamento: { ...formData.pagamento, dataRestante: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
+                      <select
+                        value={formData.pagamento.formaPagamento}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pagamento: { ...formData.pagamento, formaPagamento: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="pix">PIX</option>
+                        <option value="cartao">Cartão</option>
+                        <option value="transferencia">Transferência</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {formData.status === 'pendencia' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Motivo da Pendência</label>
+                    <textarea
+                      value={formData.pendenciaMotivo}
+                      onChange={(e) => setFormData({ ...formData, pendenciaMotivo: e.target.value })}
+                      rows="3"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {formData.status === 'entrega_futura' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Motivo da Entrega Futura</label>
+                    <textarea
+                      value={formData.entregaFuturaMotivo}
+                      onChange={(e) => setFormData({ ...formData, entregaFuturaMotivo: e.target.value })}
+                      rows="3"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Observações</label>
+                  <textarea
+                    value={formData.observacoes}
+                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                    rows="3"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                  >
+                    {editingSale ? 'Atualizar' : 'Salvar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      resetForm();
+                    }}
+                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+export default App;

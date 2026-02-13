@@ -1,93 +1,108 @@
 import { openDB } from 'idb';
 
-const DB_NAME = 'vendas-db';
-const STORE_NAME = 'vendas';
-const DB_VERSION = 4; // bump to support migration markers (indexes remain compatible)
+const DB_NAME = 'controle-vendas-db';
+const DB_VERSION = 5;
+const STORE_NAME = 'sales';
 
-/**
- * IndexedDB init (idempotent)
- */
-export const initDB = async () => {
-  return openDB(DB_NAME, DB_VERSION, {
+export async function initDB() {
+  const db = await openDB(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
-      let store;
+      // Se o store não existe, criar
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-      } else {
-        store = transaction.objectStore(STORE_NAME);
+        const store = db.createObjectStore(STORE_NAME, {
+          keyPath: 'id',
+          autoIncrement: true,
+        });
+        store.createIndex('cliente', 'cliente', { unique: false });
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('dataPrevista', 'dataPrevista', { unique: false });
+        store.createIndex('dataEntregue', 'dataEntregue', { unique: false });
       }
 
-      // Indices (idempotent)
-      const indices = [
-        'data',
-        'cliente',
-        'statusPagamento',
-        'tipoEntrega',
-        'dataEntrega',
-        'status',
-        'pagamentoDetalhe',
-      ];
+      // Migração de dados antigos para v5
+      if (oldVersion < 5) {
+        const store = transaction.objectStore(STORE_NAME);
+        store.openCursor().then(function migrate(cursor) {
+          if (!cursor) return;
+          
+          const sale = cursor.value;
+          
+          // Adicionar campos que podem estar faltando
+          const updatedSale = {
+            ...sale,
+            valorTabela: sale.valorTabela || sale.valorFinal || 0,
+            desconto: sale.desconto || 0,
+            pagamento: sale.pagamento || {
+              sinal: 0,
+              dataSinal: '',
+              restante: 0,
+              dataRestante: '',
+              formaPagamento: 'dinheiro'
+            },
+            pendenciaMotivo: sale.pendenciaMotivo || '',
+            entregaFuturaMotivo: sale.entregaFuturaMotivo || '',
+            observacoes: sale.observacoes || ''
+          };
 
-      indices.forEach((idx) => {
-        if (!store.indexNames.contains(idx)) store.createIndex(idx, idx);
-      });
+          cursor.update(updatedSale);
+          return cursor.continue().then(migrate);
+        });
+      }
     },
   });
-};
 
-// CRUD
-export const addVenda = async (venda) => {
-  const db = await initDB();
-  return db.add(STORE_NAME, venda);
-};
+  return db;
+}
 
-export const getVendas = async () => {
+export async function getAllSales() {
   const db = await initDB();
   return db.getAll(STORE_NAME);
-};
+}
 
-export const deleteVenda = async (id) => {
+export async function getSale(id) {
+  const db = await initDB();
+  return db.get(STORE_NAME, id);
+}
+
+export async function addSale(sale) {
+  const db = await initDB();
+  const saleData = {
+    ...sale,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  return db.add(STORE_NAME, saleData);
+}
+
+export async function updateSale(id, sale) {
+  const db = await initDB();
+  const saleData = {
+    ...sale,
+    id,
+    updatedAt: new Date().toISOString()
+  };
+  return db.put(STORE_NAME, saleData);
+}
+
+export async function deleteSale(id) {
   const db = await initDB();
   return db.delete(STORE_NAME, id);
-};
+}
 
-export const updateVenda = async (venda) => {
+export async function getSalesByStatus(status) {
   const db = await initDB();
-  return db.put(STORE_NAME, venda);
-};
+  return db.getAllFromIndex(STORE_NAME, 'status', status);
+}
 
-// Batch insert (single transaction) for restore/migration
-export const addVendasBatch = async (vendas) => {
+export async function getSalesByMonth(year, month) {
   const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-
-  for (const v of vendas) {
-    store.add(v);
-  }
-
-  await tx.done;
-};
-
-// Replace-all helper (used by migration) - atomic transaction
-export const putVendasBatch = async (vendas) => {
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-
-  try {
-    // No IndexedDB, operações dentro da mesma transação são atómicas.
-    // Se houver erro no loop, o clear() também sofre rollback.
-    await store.clear();
-    for (const v of vendas) {
-      // Removemos o ID para garantir que o autoIncrement não conflite se necessário, 
-      // ou mantemos se for uma migração de preservação de ID.
-      await store.put(v);
-    }
-    await tx.done;
-  } catch (error) {
-    console.error("Erro no batch update, a transação será revertida:", error);
-    tx.abort();
-    throw error;
-  }
-};
+  const all = await db.getAll(STORE_NAME);
+  const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+  
+  return all.filter(sale => {
+    const saleMonth = sale.dataEntregue 
+      ? sale.dataEntregue.substring(0, 7) 
+      : sale.dataPrevista.substring(0, 7);
+    return saleMonth === targetMonth;
+  });
+}
