@@ -1,12 +1,1102 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Controle de Vendas</title>
-  </head>
-  <body class="bg-gray-50">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080c12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Atacadão do Sono</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #080c12;
+  --bg2:        #0e1420;
+  --card:       #111827;
+  --card2:      #161f2e;
+  --border:     rgba(255,255,255,0.07);
+  --border2:    rgba(255,255,255,0.13);
+  --blue:       #3b82f6;
+  --blue-glow:  rgba(59,130,246,0.25);
+  --blue-soft:  rgba(59,130,246,0.12);
+  --teal:       #14b8a6;
+  --teal-glow:  rgba(20,184,166,0.22);
+  --teal-soft:  rgba(20,184,166,0.1);
+  --amber:      #f59e0b;
+  --amber-soft: rgba(245,158,11,0.1);
+  --green:      #22c55e;
+  --green-soft: rgba(34,197,94,0.1);
+  --red:        #ef4444;
+  --red-soft:   rgba(239,68,68,0.1);
+  --purple:     #a855f7;
+  --purple-soft:rgba(168,85,247,0.1);
+  --text:       #f1f5f9;
+  --text2:      #94a3b8;
+  --text3:      #475569;
+  --radius:     14px;
+  --radius-sm:  9px;
+  --shadow:     0 4px 24px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 48px rgba(0,0,0,0.6);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100dvh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+.glow-orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+.glow-orb.blue{width:500px;height:500px;top:-200px;right:-150px;background:radial-gradient(circle,rgba(59,130,246,0.11) 0%,transparent 70%)}
+.glow-orb.teal{width:400px;height:400px;bottom:-100px;left:-100px;background:radial-gradient(circle,rgba(20,184,166,0.09) 0%,transparent 70%)}
+.container{max-width:680px;margin:0 auto;padding:20px 16px 48px;position:relative;z-index:1}
+
+/* ── HEADER ── */
+header{text-align:center;padding:28px 0 24px}
+.logo-wrap{display:inline-flex;align-items:center;gap:13px;margin-bottom:10px}
+.logo-icon{width:54px;height:54px;background:linear-gradient(135deg,#1d4ed8,#0891b2);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.65rem;box-shadow:0 0 0 1px rgba(255,255,255,0.1),0 8px 28px rgba(29,78,216,0.5);flex-shrink:0}
+.logo-text h1{font-size:clamp(1.3rem,4.5vw,1.9rem);font-weight:900;letter-spacing:-0.5px;line-height:1;background:linear-gradient(135deg,#e0f2fe 0%,#bae6fd 40%,#7dd3fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-text span{font-size:0.7rem;font-weight:500;color:var(--text2);letter-spacing:2px;text-transform:uppercase;display:block;margin-top:2px}
+.header-divider{width:40px;height:2px;background:linear-gradient(90deg,var(--blue),var(--teal));margin:12px auto 0;border-radius:2px}
+
+/* ── TABS (4) ── */
+.tabs-wrapper{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:5px;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:22px;box-shadow:var(--shadow)}
+.tab{padding:9px 6px;border:none;border-radius:10px;background:transparent;color:var(--text2);font-family:'Outfit',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.22s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+.tab .ti{font-size:0.95rem}
+.tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 8px rgba(0,0,0,0.4),0 0 0 1px var(--border2)}
+.panel{display:none}
+.panel.active{display:block;animation:fadeUp .28s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── TOTAIS ── */
+.totais{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.total-card{border-radius:var(--radius);padding:16px;position:relative;overflow:hidden}
+.total-card::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(135deg,rgba(255,255,255,0.1),rgba(255,255,255,0.02));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.total-card.vendas{background:linear-gradient(135deg,rgba(29,78,216,0.2),rgba(59,130,246,0.07))}
+.total-card.comissoes{background:linear-gradient(135deg,rgba(8,116,103,0.2),rgba(20,184,166,0.07))}
+.tc-icon{font-size:1.3rem;margin-bottom:5px;display:block}
+.tc-label{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text2);margin-bottom:5px}
+.tc-value{font-family:'JetBrains Mono',monospace;font-size:clamp(1.1rem,3.5vw,1.5rem);font-weight:700;line-height:1}
+.total-card.vendas .tc-value{color:#93c5fd}
+.total-card.comissoes .tc-value{color:#5eead4}
+.tc-count{font-size:0.7rem;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace}
+
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── DATE BADGE ── */
+.date-badge{display:inline-flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:0.8rem;font-weight:600;color:var(--text2);margin-bottom:14px}
+.date-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* ── FIELDS ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.col-full{grid-column:1/-1}
+.field-label{display:block;font-size:0.73rem;font-weight:600;color:var(--text2);margin-bottom:6px}
+.field-input,.field-select{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.92rem;font-weight:500;padding:10px 13px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}
+.field-input:focus,.field-select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+.field-input.error{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft);animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.field-input::placeholder{color:var(--text3)}
+.field-select option{background:var(--card)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border:none;border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);letter-spacing:.2px;position:relative;overflow:hidden;width:100%}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0.08),transparent);pointer-events:none}
+.btn-primary{background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;box-shadow:0 4px 16px rgba(29,78,216,.4),0 0 0 1px rgba(255,255,255,.07) inset}
+.btn-primary:hover{background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 6px 20px rgba(29,78,216,.55);transform:translateY(-1px)}
+.btn-primary:active{transform:scale(.99)}
+.btn-teal{background:linear-gradient(135deg,#0d9488,#0891b2);color:#fff;box-shadow:0 4px 16px rgba(13,148,136,.4),0 0 0 1px rgba(255,255,255,.07) inset}
+.btn-teal:hover{background:linear-gradient(135deg,#14b8a6,#0ea5e9);box-shadow:0 6px 20px rgba(13,148,136,.5);transform:translateY(-1px)}
+.btn-teal:active{transform:scale(.99)}
+.btn-amber{background:linear-gradient(135deg,#b45309,#d97706);color:#fff;box-shadow:0 4px 16px rgba(180,83,9,.4)}
+.btn-amber:hover{background:linear-gradient(135deg,#d97706,#f59e0b);transform:translateY(-1px)}
+.btn-ghost{background:var(--bg2);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+.btn-danger{background:linear-gradient(135deg,#7f1d1d,#991b1b);color:#fca5a5;box-shadow:0 4px 16px rgba(127,29,29,.4)}
+.btn-danger:hover{background:linear-gradient(135deg,#991b1b,#b91c1c)}
+.btn-green{background:linear-gradient(135deg,#166534,#15803d);color:#bbf7d0;box-shadow:0 4px 16px rgba(22,101,52,.4)}
+.btn-green:hover{background:linear-gradient(135deg,#15803d,#16a34a);transform:translateY(-1px)}
+
+/* ── LISTA ── */
+.lista-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.lista-header{display:grid;grid-template-columns:minmax(0,2fr) 110px 105px 85px;padding:10px 16px;background:rgba(255,255,255,0.025);border-bottom:1px solid var(--border)}
+.lista-header span{font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:var(--text3)}
+.venda-item{display:grid;grid-template-columns:minmax(0,2fr) 110px 105px 85px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .15s;animation:slideDown .22s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.venda-item:last-child{border-bottom:none}
+.venda-item:hover{background:rgba(255,255,255,0.015)}
+.venda-desc{font-size:0.83rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
+.venda-tag{display:inline-flex;align-items:center;font-size:0.6rem;font-family:'JetBrains Mono',monospace;font-weight:700;padding:2px 6px;border-radius:20px;background:var(--teal-soft);color:var(--teal);border:1px solid rgba(20,184,166,0.2);margin-left:5px;vertical-align:middle}
+.venda-valor{font-family:'JetBrains Mono',monospace;font-size:0.82rem;font-weight:700;color:#93c5fd}
+.venda-comissao{font-family:'JetBrains Mono',monospace;font-size:0.82rem;font-weight:700;color:#5eead4}
+.venda-acoes{display:flex;gap:5px}
+.btn-sm{width:31px;height:31px;border:1px solid var(--border);border-radius:7px;background:var(--bg2);color:var(--text2);cursor:pointer;font-size:0.78rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-sm.edit:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.btn-sm.del:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.lista-empty{padding:40px 20px;text-align:center;color:var(--text3)}
+.lista-empty .ei{font-size:2.4rem;margin-bottom:10px;opacity:.3;display:block}
+.lista-empty p{font-size:0.86rem;line-height:1.6}
+
+/* ── RESUMO BAR ── */
+.resumo-bar{background:linear-gradient(135deg,rgba(29,78,216,0.13),rgba(8,116,103,0.1));border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:14px 18px;margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center}
+.rb-label{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:3px}
+.rb-val{font-family:'JetBrains Mono',monospace;font-size:0.9rem;font-weight:700}
+.rb-item.total-v .rb-val{color:#93c5fd}
+.rb-item.total-c .rb-val{color:#5eead4}
+.rb-item.total-n .rb-val{color:#e2e8f0}
+
+/* ── FECHAR DIA ── */
+.fechar-dia-wrap{margin-top:14px}
+.fechar-dia-btn{background:linear-gradient(135deg,#1d4ed8,#0d9488);color:#fff;border:none;border-radius:var(--radius-sm);width:100%;padding:13px;font-family:'Outfit',sans-serif;font-weight:800;font-size:0.95rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 4px 20px rgba(29,78,216,.35),0 0 0 1px rgba(255,255,255,.06) inset;letter-spacing:.3px}
+.fechar-dia-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(29,78,216,.5)}
+.fechar-dia-btn:active{transform:scale(.99)}
+
+/* ── BACKUP SECTION ── */
+.backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.backup-info{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:0.8rem;color:var(--text2)}
+.backup-info .bi-icon{font-size:1.2rem}
+.backup-info strong{color:var(--text);display:block;font-size:0.82rem;margin-bottom:1px}
+.backup-warning{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;font-size:0.8rem;color:#fbbf24}
+.backup-warning .bw-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+
+/* ── HISTÓRICO ── */
+.mes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.mes-nav{display:flex;align-items:center;gap:10px}
+.mes-nav button{background:var(--bg2);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;transition:all .15s}
+.mes-nav button:hover{border-color:var(--border2);color:var(--text)}
+.mes-titulo{font-family:'JetBrains Mono',monospace;font-size:0.88rem;font-weight:700;color:var(--text);text-transform:capitalize}
+.hist-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.hr-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.hr-label{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:4px}
+.hr-val{font-family:'JetBrains Mono',monospace;font-size:0.9rem;font-weight:700}
+.hr-card.hv .hr-val{color:#93c5fd}
+.hr-card.hc .hr-val{color:#5eead4}
+.hr-card.hn .hr-val{color:var(--text2)}
+
+.dia-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.dia-item:hover{border-color:var(--border2);background:rgba(255,255,255,0.025)}
+.dia-item.expanded{border-color:rgba(59,130,246,0.3);background:rgba(59,130,246,0.04)}
+.dia-header{display:flex;align-items:center;justify-content:space-between}
+.dia-date{font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:700;color:var(--text)}
+.dia-badge{display:inline-flex;align-items:center;gap:5px;font-size:0.7rem;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:20px;background:var(--blue-soft);color:#93c5fd;border:1px solid rgba(59,130,246,0.2)}
+.dia-totais{display:flex;gap:16px;margin-top:4px}
+.dia-val{font-size:0.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
+.dia-val span{font-weight:700}
+.dia-val span.v{color:#93c5fd}
+.dia-val span.c{color:#5eead4}
+.dia-chevron{color:var(--text3);font-size:0.75rem;transition:transform .2s}
+.dia-item.expanded .dia-chevron{transform:rotate(90deg)}
+.dia-vendas{display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.dia-item.expanded .dia-vendas{display:block}
+.dv-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.8rem}
+.dv-row:last-child{border-bottom:none}
+.dv-desc{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dv-val{color:#93c5fd;font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap}
+.dv-com{color:#5eead4;font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap}
+.hist-empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:0.88rem}
+.hist-empty .ei{font-size:2.2rem;display:block;margin-bottom:10px;opacity:.3}
+
+/* ── GERADOR ── */
+.prod-row{display:grid;grid-template-columns:60px 1fr 34px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.prod-row:last-child{border-bottom:none}
+.prod-input{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.88rem;padding:9px 10px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.prod-input.qtd{text-align:center}
+.prod-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+.prod-input::placeholder{color:var(--text3);font-size:0.78rem}
+.btn-del-prod{width:34px;height:34px;background:var(--red-soft);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:var(--red);cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-del-prod:hover{background:rgba(239,68,68,0.2)}
+.btn-add-prod{width:100%;margin-top:10px;padding:9px;background:none;border:1px dashed rgba(255,255,255,0.1);border-radius:9px;color:var(--text2);font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-add-prod:hover{border-color:var(--blue);color:#93c5fd;background:var(--blue-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg2);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:500;cursor:pointer;transition:all .15s;user-select:none}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.sel-blue{background:var(--blue-soft);border-color:rgba(59,130,246,.4);color:#93c5fd;box-shadow:0 0 10px var(--blue-glow)}
+.chip.sel-purple{background:var(--purple-soft);border-color:rgba(168,85,247,.35);color:#c4b5fd;box-shadow:0 0 10px rgba(168,85,247,.2)}
+.chip.sel-teal{background:var(--teal-soft);border-color:rgba(20,184,166,.35);color:#5eead4;box-shadow:0 0 10px var(--teal-glow)}
+.preview-wrap{background:#030712;border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-top:14px;box-shadow:var(--shadow-lg)}
+.preview-header{background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.preview-title{font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);display:flex;align-items:center;gap:7px}
+.preview-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:pulse 2s infinite}
+.preview-body{padding:18px;font-family:'JetBrains Mono',monospace;font-size:0.82rem;line-height:1.95;color:#cbd5e1;white-space:pre-wrap;min-height:120px}
+.btn-copy{width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#0d9488,#0891b2);border:none;border-radius:var(--radius-sm);color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(13,148,136,.45);position:relative;overflow:hidden;letter-spacing:.3px}
+.btn-copy::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0.1),transparent);pointer-events:none}
+.btn-copy:hover{background:linear-gradient(135deg,#14b8a6,#0ea5e9);transform:translateY(-1px);box-shadow:0 6px 24px rgba(13,148,136,.6)}
+.btn-copy.copiado{background:linear-gradient(135deg,#166534,#15803d);box-shadow:0 4px 20px rgba(22,101,52,.5)}
+
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:999;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--card2);border:1px solid var(--border2);border-radius:18px;padding:26px;width:100%;max-width:430px;box-shadow:var(--shadow-lg);animation:modalIn .28s cubic-bezier(.34,1.56,.64,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(.9) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-title{font-size:1.05rem;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:9px;color:#93c5fd}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:12px 20px;font-size:0.85rem;font-weight:600;color:var(--text);box-shadow:var(--shadow-lg);z-index:9999;opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(34,197,94,.3);color:#86efac}
+.toast.warning{border-color:rgba(245,158,11,.3);color:#fde68a}
+
+footer{text-align:center;margin-top:28px;padding-bottom:16px;color:var(--text3);font-size:0.7rem;letter-spacing:.5px}
+footer span{color:var(--text2)}
+
+@media(max-width:520px){
+  .tabs-wrapper{grid-template-columns:repeat(2,1fr)}
+  .lista-header{grid-template-columns:1fr 95px 75px}
+  .lista-header .lh-com{display:none}
+  .venda-item{grid-template-columns:1fr 95px 75px}
+  .venda-comissao{display:none}
+  .resumo-bar{grid-template-columns:1fr 1fr}
+  .resumo-bar .rb-item.total-n{display:none}
+  .form-grid{grid-template-columns:1fr}
+  .form-grid .col-full{grid-column:1}
+  .hist-resumo{grid-template-columns:1fr 1fr}
+  .hist-resumo .hr-card:last-child{display:none}
+  .backup-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="glow-orb blue"></div>
+<div class="glow-orb teal"></div>
+<div class="toast" id="toast"></div>
+
+<div class="container">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo-icon">🛏️</div>
+    <div class="logo-text">
+      <h1>Atacadão do Sono</h1>
+      <span>Vendas &amp; Comissões</span>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+</header>
+
+<!-- TABS -->
+<div class="tabs-wrapper">
+  <button class="tab active" id="tab-somador"   onclick="mudarAba('somador')">  <span class="ti">💰</span> Vendas</button>
+  <button class="tab"        id="tab-historico" onclick="mudarAba('historico')"><span class="ti">📆</span> Histórico</button>
+  <button class="tab"        id="tab-mensagem"  onclick="mudarAba('mensagem')"> <span class="ti">📩</span> Mensagem</button>
+  <button class="tab"        id="tab-backup"    onclick="mudarAba('backup')">   <span class="ti">💾</span> Backup</button>
+</div>
+
+<!-- ════════════════════════════════
+     ABA 1 — SOMADOR
+════════════════════════════════ -->
+<div class="panel active" id="panel-somador">
+
+  <div class="date-badge">
+    <div class="dot"></div>
+    <span id="dataHoje"></span>
+  </div>
+
+  <div class="totais">
+    <div class="total-card vendas">
+      <span class="tc-icon">💵</span>
+      <div class="tc-label">Total Vendas Hoje</div>
+      <div class="tc-value" id="totalVendas">R$ 0,00</div>
+      <div class="tc-count" id="qtdVendas">0 vendas</div>
+    </div>
+    <div class="total-card comissoes">
+      <span class="tc-icon">🏆</span>
+      <div class="tc-label">Comissões Hoje</div>
+      <div class="tc-value" id="totalComissoes">R$ 0,00</div>
+      <div class="tc-count" id="pctMedio">— média</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">✦ Nova Venda</div>
+    <div class="form-grid">
+      <div class="col-full">
+        <label class="field-label">Descrição da Venda</label>
+        <input class="field-input" id="descricao" type="text" placeholder="Ex: Colchão Morfeu + Base — João Silva" />
+      </div>
+      <div>
+        <label class="field-label">Valor da Venda (R$)</label>
+        <input class="field-input" id="valor" type="number" placeholder="0,00" min="0" step="0.01" inputmode="decimal" />
+      </div>
+      <div>
+        <label class="field-label">Comissão</label>
+        <select class="field-select" id="comissao" style="cursor:pointer">
+          <option value="3">3%</option>
+          <option value="4">4%</option>
+          <option value="5" selected>5%</option>
+          <option value="6">6%</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="adicionarVenda()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adicionar Venda
+    </button>
+  </div>
+
+  <div class="lista-card">
+    <div class="lista-header">
+      <span>Descrição</span>
+      <span>Venda</span>
+      <span class="lh-com">Comissão</span>
+      <span>Ações</span>
+    </div>
+    <div id="lista">
+      <div class="lista-empty"><span class="ei">📋</span><p>Nenhuma venda hoje ainda.<br>Adicione sua primeira venda acima.</p></div>
+    </div>
+  </div>
+
+  <div class="resumo-bar" id="resumoBar" style="display:none">
+    <div class="rb-item total-v"><div class="rb-label">Total Vendas</div><div class="rb-val" id="rbVendas">—</div></div>
+    <div class="rb-item total-c"><div class="rb-label">Total Comissão</div><div class="rb-val" id="rbComissoes">—</div></div>
+    <div class="rb-item total-n"><div class="rb-label">Nº Vendas</div><div class="rb-val" id="rbQtd">—</div></div>
+  </div>
+
+  <div class="fechar-dia-wrap" id="fecharDiaWrap" style="display:none">
+    <button class="fechar-dia-btn" onclick="fecharDia()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      Fechar o Dia de Hoje
+    </button>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════
+     ABA 2 — HISTÓRICO
+════════════════════════════════ -->
+<div class="panel" id="panel-historico">
+
+  <div class="mes-header">
+    <div class="mes-nav">
+      <button onclick="navMes(-1)">&#8249;</button>
+      <div class="mes-titulo" id="mesTitulo">—</div>
+      <button onclick="navMes(1)">&#8250;</button>
+    </div>
+  </div>
+
+  <div class="hist-resumo" id="histResumo">
+    <div class="hr-card hv"><div class="hr-label">Vendas no Mês</div><div class="hr-val" id="hrVendas">R$ 0,00</div></div>
+    <div class="hr-card hc"><div class="hr-label">Comissão no Mês</div><div class="hr-val" id="hrComissoes">R$ 0,00</div></div>
+    <div class="hr-card hn"><div class="hr-label">Dias Trabalhados</div><div class="hr-val" id="hrDias">0</div></div>
+  </div>
+
+  <div id="histLista">
+    <div class="hist-empty"><span class="ei">📆</span>Nenhum dia fechado ainda.<br>Feche um dia na aba Vendas para ver o histórico.</div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════
+     ABA 3 — MENSAGEM
+════════════════════════════════ -->
+<div class="panel" id="panel-mensagem">
+
+  <div class="card">
+    <div class="card-title">📦 Produtos</div>
+    <div id="produtosLista"></div>
+    <button class="btn-add-prod" onclick="addProd()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adicionar produto
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💳 Pagamento</div>
+    <div class="chips" id="pgtoChips">
+      <button class="chip" onclick="selPgto(this,'À VISTA')">À VISTA</button>
+      <button class="chip" onclick="selPgto(this,'PIX')">PIX</button>
+      <button class="chip" onclick="selPgto(this,'BLU 2X')">BLU 2X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 3X')">BLU 3X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 4X')">BLU 4X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 5X')">BLU 5X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 6X')">BLU 6X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 7X')">BLU 7X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 8X')">BLU 8X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 9X')">BLU 9X</button>
+      <button class="chip sel-blue" onclick="selPgto(this,'BLU 10X')">BLU 10X</button>
+      <button class="chip" onclick="selPgto(this,'BLU 12X')">BLU 12X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 2X')">CARTÃO 2X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 3X')">CARTÃO 3X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 4X')">CARTÃO 4X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 6X')">CARTÃO 6X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 10X')">CARTÃO 10X</button>
+      <button class="chip" onclick="selPgto(this,'CARTÃO 12X')">CARTÃO 12X</button>
+      <button class="chip" onclick="selPgto(this,'BOLETO')">BOLETO</button>
+    </div>
+    <div style="margin-top:12px">
+      <label class="field-label">Ou digitar forma personalizada</label>
+      <input class="field-input" id="pgtoCustom" type="text" placeholder="Ex: CHEQUE, BOLETO 3X..." oninput="atualizarMsg()" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Detalhes da Venda</div>
+    <div class="form-grid">
+      <div>
+        <label class="field-label">📅 Dia da Entrega</label>
+        <input class="field-input" id="entrega" type="text" placeholder="FOI HOJE / 25/07..." oninput="atualizarMsg()" />
+      </div>
+      <div>
+        <label class="field-label">💰 Valor da Venda (R$)</label>
+        <input class="field-input" id="msgValor" type="number" placeholder="1858.82" step="0.01" inputmode="decimal" oninput="atualizarMsg()" />
+      </div>
+      <div class="col-full">
+        <label class="field-label">💱 Valor Sistema (R$)</label>
+        <input class="field-input" id="msgSistema" type="number" placeholder="2186.85" step="0.01" inputmode="decimal" oninput="atualizarMsg()" />
+      </div>
+    </div>
+    <div>
+      <label class="field-label" style="margin-bottom:8px">📱 Mídia</label>
+      <div class="chips" id="midiaChips">
+        <button class="chip sel-purple" onclick="selMidia(this,'ENTROU E COMPROU')">ENTROU E COMPROU</button>
+        <button class="chip" onclick="selMidia(this,'WHATSAPP')">WHATSAPP</button>
+        <button class="chip" onclick="selMidia(this,'INSTAGRAM')">INSTAGRAM</button>
+        <button class="chip" onclick="selMidia(this,'FACEBOOK')">FACEBOOK</button>
+        <button class="chip" onclick="selMidia(this,'INDICAÇÃO')">INDICAÇÃO</button>
+        <button class="chip" onclick="selMidia(this,'RETORNO')">RETORNO</button>
+        <button class="chip" onclick="selMidia(this,'SITE')">SITE</button>
+        <button class="chip" onclick="selMidia(this,'GOOGLE')">GOOGLE</button>
+        <button class="chip" onclick="selMidia(this,'TIKTOK')">TIKTOK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-wrap">
+    <div class="preview-header">
+      <div class="preview-title"><div class="preview-dot"></div>Prévia da Mensagem</div>
+      <span style="font-size:.63rem;color:var(--text3)">Atualiza em tempo real</span>
+    </div>
+    <div class="preview-body" id="msgPreview"></div>
+  </div>
+
+  <button class="btn-copy" id="btnCopiar" onclick="copiarMsg()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    Copiar Mensagem
+  </button>
+
+  <div style="margin-top:10px">
+    <button class="btn btn-danger" onclick="limparMsg()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      Limpar e nova mensagem
+    </button>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════
+     ABA 4 — BACKUP
+════════════════════════════════ -->
+<div class="panel" id="panel-backup">
+
+  <div class="backup-warning">
+    <span class="bw-icon">⚠️</span>
+    <div>
+      <strong style="color:#fbbf24;display:block;font-size:0.83rem;margin-bottom:2px">Proteja seus dados!</strong>
+      O sistema salva tudo no navegador. Se limpar o cache ou trocar de celular, os dados somem. Faça backup com frequência.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📤 Exportar Backup</div>
+    <div class="backup-info">
+      <span class="bi-icon">📊</span>
+      <div>
+        <strong id="backupInfoTxt">Carregando...</strong>
+        <span>Dados atuais no sistema</span>
+      </div>
+    </div>
+    <div class="backup-grid">
+      <button class="btn btn-green" onclick="exportarJSON()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Backup JSON
+      </button>
+      <button class="btn btn-teal" onclick="exportarCSV()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Exportar CSV
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📥 Restaurar Backup</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      Selecione um arquivo <strong style="color:var(--text)">.json</strong> exportado anteriormente para restaurar todos os dados. Os dados atuais serão substituídos.
+    </p>
+    <label style="display:block">
+      <div class="btn btn-amber" style="cursor:pointer" onclick="document.getElementById('fileImport').click()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Selecionar arquivo de backup
+      </div>
+      <input type="file" id="fileImport" accept=".json" style="display:none" onchange="importarJSON(event)" />
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗑️ Zona de Perigo</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      Apaga <strong style="color:var(--red)">permanentemente</strong> todos os dados. Faça backup antes!
+    </p>
+    <button class="btn btn-danger" onclick="apagarTudo()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Apagar todos os dados
+    </button>
+  </div>
+
+  <div class="card" style="margin-top:4px">
+    <div class="card-title">📋 Instruções de Backup</div>
+    <div style="font-size:.82rem;color:var(--text2);line-height:1.8">
+      <p>1. Clique em <strong style="color:var(--text)">Backup JSON</strong> para baixar um arquivo com todos os seus dados</p>
+      <p>2. Guarde o arquivo no Google Drive, WhatsApp ou qualquer lugar seguro</p>
+      <p>3. Para restaurar em outro celular: abra o site, vá em Backup → <strong style="color:var(--text)">Selecionar arquivo</strong></p>
+      <p style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--teal);color:var(--teal)">
+        💡 Recomendo fazer backup <strong>toda sexta-feira</strong> antes de sair do trabalho
+      </p>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /container -->
+
+<!-- MODAL EDIÇÃO -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar Venda
+    </div>
+    <div style="margin-bottom:12px">
+      <label class="field-label">Descrição</label>
+      <input class="field-input" id="editDesc" type="text" />
+    </div>
+    <div class="form-grid">
+      <div>
+        <label class="field-label">Valor (R$)</label>
+        <input class="field-input" id="editValor" type="number" min="0" step="0.01" />
+      </div>
+      <div>
+        <label class="field-label">Comissão</label>
+        <select class="field-select" id="editComissao" style="cursor:pointer">
+          <option value="3">3%</option>
+          <option value="4">4%</option>
+          <option value="5">5%</option>
+          <option value="6">6%</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FECHAR DIA -->
+<div class="overlay" id="overlayFechar">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      Fechar o Dia
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:0.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Resumo do dia</div>
+      <div id="fecharResumo" style="font-size:0.88rem;line-height:1.9;font-family:'JetBrains Mono',monospace"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:4px">
+      O dia será salvo no <strong style="color:var(--text)">Histórico</strong> e as vendas de hoje serão arquivadas. Confirma?
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModalFechar()">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarFecharDia()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Fechar o dia
+      </button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Atacadão do Sono &nbsp;·&nbsp; <span>Dados salvos localmente</span> &nbsp;·&nbsp; Funciona em qualquer dispositivo
+</footer>
+
+<script>
+/* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+const R = id => document.getElementById(id);
+const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const numBrl = n => (!n && n!==0) ? '___' : parseFloat(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const arred = v => Math.round(v*100)/100;
+
+function toast(msg, tipo='success', dur=3000){
+  const t = R('toast');
+  t.textContent = msg;
+  t.className = `toast show ${tipo}`;
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+/* ════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════ */
+function dataHoje(){
+  const d = new Date();
+  return d.toISOString().slice(0,10); // YYYY-MM-DD
+}
+
+function fmtData(iso){
+  const [y,m,d] = iso.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const dias  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const dt = new Date(y, m-1, d);
+  return `${dias[dt.getDay()]}, ${d} ${meses[m-1]} ${y}`;
+}
+
+function fmtMes(ano, mes){
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return `${meses[mes-1]} ${ano}`;
+}
+
+/* ════════════════════════════════════════════
+   STORAGE — estrutura:
+   atac_vendas_hoje : { data: 'YYYY-MM-DD', itens: [...] }
+   atac_historico   : { 'YYYY-MM-DD': { data, itens, totalVendas, totalCom } }
+════════════════════════════════════════════ */
+function loadHoje(){
+  const raw = localStorage.getItem('atac_hoje');
+  if(!raw) return { data: dataHoje(), itens: [] };
+  const obj = JSON.parse(raw);
+  // se o dia mudou desde a última sessão, começa novo (avisa usuário se havia vendas)
+  if(obj.data !== dataHoje()){
+    // mantém mas não auto-fecha — usuário decide
+    return { data: obj.data, itens: obj.itens, diaAnterior: true };
+  }
+  return obj;
+}
+
+function saveHoje(obj){ localStorage.setItem('atac_hoje', JSON.stringify(obj)); }
+
+function loadHist(){
+  const raw = localStorage.getItem('atac_hist');
+  return raw ? JSON.parse(raw) : {};
+}
+
+function saveHist(h){ localStorage.setItem('atac_hist', JSON.stringify(h)); }
+
+/* ════════════════════════════════════════════
+   ABAS
+════════════════════════════════════════════ */
+const abas = ['somador','historico','mensagem','backup'];
+function mudarAba(aba){
+  abas.forEach(a=>{
+    R('tab-'+a).classList.toggle('active', a===aba);
+    R('panel-'+a).classList.toggle('active', a===aba);
+  });
+  if(aba==='historico') renderHistorico();
+  if(aba==='backup')    atualizarBackupInfo();
+}
+
+/* ════════════════════════════════════════════
+   SOMADOR
+════════════════════════════════════════════ */
+let hoje = loadHoje();
+let editIdx = null;
+
+// Aviso se virou o dia
+window.addEventListener('load', ()=>{
+  if(hoje.diaAnterior && hoje.itens.length > 0){
+    toast(`⚠️ Vendas de ${fmtData(hoje.data)} não fechadas. Feche o dia ou continue.`, 'warning', 6000);
+  }
+  R('dataHoje').textContent = fmtData(hoje.diaAnterior ? hoje.data : dataHoje());
+  renderLista();
+  renderProds();
+  atualizarMsg();
+  addProd('01','');
+  addProd('01','');
+});
+
+function calcTotais(){
+  let sv=0, sc=0;
+  for(const v of hoje.itens){
+    sv += v.valor;
+    sc += arred(v.valor * v.comissao / 100);
+  }
+  return { sv: arred(sv), sc: arred(sc) };
+}
+
+function renderLista(){
+  const {sv, sc} = calcTotais();
+  const n = hoje.itens.length;
+
+  R('totalVendas').textContent   = brl(sv);
+  R('totalComissoes').textContent = brl(sc);
+  R('qtdVendas').textContent = n===0?'0 vendas':n===1?'1 venda':`${n} vendas`;
+  R('pctMedio').textContent  = (n>0&&sv>0) ? `${((sc/sv)*100).toFixed(2)}% médio` : '— média';
+  R('resumoBar').style.display = n>0?'grid':'none';
+  R('fecharDiaWrap').style.display = n>0?'block':'none';
+  R('rbVendas').textContent    = brl(sv);
+  R('rbComissoes').textContent  = brl(sc);
+  R('rbQtd').textContent       = n;
+
+  const lista = R('lista');
+  if(!n){
+    lista.innerHTML=`<div class="lista-empty"><span class="ei">📋</span><p>Nenhuma venda hoje ainda.<br>Adicione sua primeira venda acima.</p></div>`;
+    return;
+  }
+  lista.innerHTML = hoje.itens.map((v,i)=>{
+    const com = arred(v.valor * v.comissao / 100);
+    return `<div class="venda-item">
+      <span class="venda-desc">${esc(v.desc)}<span class="venda-tag">${v.comissao}%</span></span>
+      <span class="venda-valor">${brl(v.valor)}</span>
+      <span class="venda-comissao">${brl(com)}</span>
+      <div class="venda-acoes">
+        <button class="btn-sm edit" title="Editar" onclick="editarVenda(${i})">✏️</button>
+        <button class="btn-sm del"  title="Apagar" onclick="apagarVenda(${i})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function adicionarVenda(){
+  const desc  = R('descricao').value.trim();
+  const raw   = R('valor').value.trim();
+  const valor = parseFloat(raw);
+  const com   = parseInt(R('comissao').value);
+  if(!raw||isNaN(valor)||valor<=0){
+    R('valor').classList.add('error');
+    R('valor').focus();
+    setTimeout(()=>R('valor').classList.remove('error'),800);
+    return;
+  }
+  hoje.itens.push({ desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() });
+  saveHoje(hoje);
+  renderLista();
+  R('descricao').value='';
+  R('valor').value='';
+  R('valor').focus();
+  toast('✅ Venda adicionada!');
+}
+
+function apagarVenda(i){
+  if(confirm(`Apagar "${hoje.itens[i].desc}"?`)){
+    hoje.itens.splice(i,1);
+    saveHoje(hoje);
+    renderLista();
+    toast('🗑️ Venda removida','warning');
+  }
+}
+
+function editarVenda(i){
+  editIdx=i;
+  R('editDesc').value  = hoje.itens[i].desc;
+  R('editValor').value = hoje.itens[i].valor;
+  R('editComissao').value = hoje.itens[i].comissao;
+  R('overlay').classList.add('show');
+}
+
+function fecharModal(){ R('overlay').classList.remove('show'); editIdx=null; }
+
+function salvarEdicao(){
+  if(editIdx===null) return;
+  const valor = parseFloat(R('editValor').value);
+  if(isNaN(valor)||valor<=0) return;
+  hoje.itens[editIdx]={
+    desc: R('editDesc').value.trim()||'Venda sem descrição',
+    valor: arred(valor),
+    comissao: parseInt(R('editComissao').value),
+    ts: hoje.itens[editIdx].ts
+  };
+  saveHoje(hoje); renderLista(); fecharModal();
+  toast('✅ Venda atualizada!');
+}
+
+/* ════════════════════════════════════════════
+   FECHAR DIA
+════════════════════════════════════════════ */
+function fecharDia(){
+  if(!hoje.itens.length){ toast('Sem vendas para fechar!','warning'); return; }
+  const {sv,sc} = calcTotais();
+  const n = hoje.itens.length;
+  R('fecharResumo').innerHTML =
+    `<span style="color:var(--text2)">📅 Data:</span> <span style="color:var(--text)">${fmtData(hoje.data)}</span>\n`+
+    `<span style="color:var(--text2)">🛒 Vendas:</span> <span style="color:#93c5fd">${n} venda${n!==1?'s':''}</span>\n`+
+    `<span style="color:var(--text2)">💵 Total:</span> <span style="color:#93c5fd">${brl(sv)}</span>\n`+
+    `<span style="color:var(--text2)">🏆 Comissão:</span> <span style="color:#5eead4">${brl(sc)}</span>`;
+  R('overlayFechar').classList.add('show');
+}
+
+function fecharModalFechar(){ R('overlayFechar').classList.remove('show'); }
+
+function confirmarFecharDia(){
+  const {sv,sc} = calcTotais();
+  const hist = loadHist();
+  // Salva no histórico (se já existe esse dia, mescla)
+  hist[hoje.data] = {
+    data: hoje.data,
+    itens: [...hoje.itens],
+    totalVendas: sv,
+    totalCom: sc
+  };
+  saveHist(hist);
+  // Limpa hoje com nova data
+  hoje = { data: dataHoje(), itens: [] };
+  saveHoje(hoje);
+  renderLista();
+  fecharModalFechar();
+  R('dataHoje').textContent = fmtData(dataHoje());
+  toast('✅ Dia fechado e salvo no histórico!');
+}
+
+/* ════════════════════════════════════════════
+   HISTÓRICO
+════════════════════════════════════════════ */
+let histMesAno = { ano: new Date().getFullYear(), mes: new Date().getMonth()+1 };
+
+function navMes(dir){
+  histMesAno.mes += dir;
+  if(histMesAno.mes > 12){ histMesAno.mes=1; histMesAno.ano++; }
+  if(histMesAno.mes < 1) { histMesAno.mes=12; histMesAno.ano--; }
+  renderHistorico();
+}
+
+function renderHistorico(){
+  const {ano,mes} = histMesAno;
+  R('mesTitulo').textContent = fmtMes(ano,mes);
+  const hist = loadHist();
+  const prefixo = `${ano}-${String(mes).padStart(2,'0')}`;
+  const dias = Object.keys(hist).filter(k=>k.startsWith(prefixo)).sort().reverse();
+
+  let totV=0, totC=0;
+  dias.forEach(d=>{ totV+=hist[d].totalVendas; totC+=hist[d].totalCom; });
+  R('hrVendas').textContent   = brl(arred(totV));
+  R('hrComissoes').textContent = brl(arred(totC));
+  R('hrDias').textContent     = dias.length;
+
+  const el = R('histLista');
+  if(!dias.length){
+    el.innerHTML=`<div class="hist-empty"><span class="ei">📆</span>Nenhum dia fechado em ${fmtMes(ano,mes)}.<br>Feche um dia na aba Vendas para ver aqui.</div>`;
+    return;
+  }
+  el.innerHTML = dias.map(d=>{
+    const dh = hist[d];
+    const n  = dh.itens.length;
+    const vendasRows = dh.itens.map(v=>{
+      const com = arred(v.valor * v.comissao/100);
+      return `<div class="dv-row">
+        <span class="dv-desc">${esc(v.desc)}</span>
+        <span class="dv-val">${brl(v.valor)}</span>
+        <span class="dv-com">${brl(com)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="dia-item" onclick="toggleDia(this)">
+      <div class="dia-header">
+        <div>
+          <div class="dia-date">${fmtData(d)}</div>
+          <div class="dia-totais">
+            <span class="dia-val">Vendas: <span class="v">${brl(dh.totalVendas)}</span></span>
+            <span class="dia-val">Com: <span class="c">${brl(dh.totalCom)}</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="dia-badge">${n} venda${n!==1?'s':''}</span>
+          <span class="dia-chevron">›</span>
+        </div>
+      </div>
+      <div class="dia-vendas">${vendasRows}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDia(el){ el.classList.toggle('expanded'); }
+
+/* ════════════════════════════════════════════
+   BACKUP
+════════════════════════════════════════════ */
+function atualizarBackupInfo(){
+  const hist = loadHist();
+  const dias = Object.keys(hist).length;
+  const totalItens = Object.values(hist).reduce((s,d)=>s+d.itens.length,0) + hoje.itens.length;
+  R('backupInfoTxt').textContent = `${dias} dia${dias!==1?'s':''} fechados · ${totalItens} vendas no total`;
+}
+
+function exportarJSON(){
+  const data = {
+    versao: '2.0',
+    exportadoEm: new Date().toISOString(),
+    hoje: hoje,
+    historico: loadHist()
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const data_str = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `atacadao-backup-${data_str}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ Backup JSON exportado!');
+}
+
+function exportarCSV(){
+  const hist = loadHist();
+  const linhas = [['Data','Descrição','Valor','Comissão %','Comissão R$']];
+  // vendas do histórico
+  Object.values(hist).sort((a,b)=>a.data.localeCompare(b.data)).forEach(d=>{
+    d.itens.forEach(v=>{
+      const com = arred(v.valor*v.comissao/100);
+      linhas.push([fmtData(d.data), v.desc, v.valor.toFixed(2).replace('.',','), v.comissao+'%', com.toFixed(2).replace('.',',')]);
+    });
+  });
+  // vendas de hoje (não fechadas)
+  if(hoje.itens.length){
+    hoje.itens.forEach(v=>{
+      const com = arred(v.valor*v.comissao/100);
+      linhas.push([fmtData(hoje.data)+' (aberto)', v.desc, v.valor.toFixed(2).replace('.',','), v.comissao+'%', com.toFixed(2).replace('.',',')]);
+    });
+  }
+  const csv = '\uFEFF' + linhas.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`atacadao-vendas-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ CSV exportado! Abra no Excel.');
+}
+
+function importarJSON(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.historico) throw new Error('Arquivo inválido');
+      if(!confirm(`Restaurar backup de ${data.exportadoEm ? new Date(data.exportadoEm).toLocaleDateString('pt-BR') : '?'}?\n\nIsso vai substituir TODOS os dados atuais.`)) return;
+      saveHist(data.historico);
+      if(data.hoje){
+        hoje = data.hoje;
+        saveHoje(hoje);
+      }
+      renderLista();
+      toast('✅ Backup restaurado com sucesso!');
+      atualizarBackupInfo();
+    } catch(err){
+      toast('❌ Arquivo inválido ou corrompido','warning');
+    }
+    ev.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function apagarTudo(){
+  if(!confirm('ATENÇÃO: Isso apaga TODOS os dados permanentemente.\n\nTem certeza? Faça backup antes!')) return;
+  if(!confirm('Última confirmação: APAGAR TUDO mesmo?')) return;
+  localStorage.removeItem('atac_hoje');
+  localStorage.removeItem('atac_hist');
+  hoje = { data: dataHoje(), itens: [] };
+  saveHoje(hoje);
+  renderLista();
+  atualizarBackupInfo();
+  toast('🗑️ Todos os dados apagados','warning');
+}
+
+/* ════════════════════════════════════════════
+   GERADOR DE MENSAGEM
+════════════════════════════════════════════ */
+let pgto='BLU 10X', midia='ENTROU E COMPROU';
+let prods=[], pid=0;
+
+function addProd(qtd='',nome=''){
+  prods.push({id:++pid,qtd,nome});
+  renderProds(); atualizarMsg();
+}
+function remProd(id){
+  prods=prods.filter(p=>p.id!==id);
+  renderProds(); atualizarMsg();
+}
+function updProd(id,campo,val){
+  const p=prods.find(p=>p.id===id);
+  if(p) p[campo]=val;
+  atualizarMsg();
+}
+function renderProds(){
+  const el=R('produtosLista');
+  if(!prods.length){
+    el.innerHTML=`<div style="color:var(--text3);font-size:.82rem;padding:10px 0;text-align:center">Clique em "+ Adicionar produto"</div>`;
+    return;
+  }
+  el.innerHTML=prods.map(p=>`
+    <div class="prod-row">
+      <input class="prod-input qtd" type="number" placeholder="Qtd" value="${p.qtd}" min="1" oninput="updProd(${p.id},'qtd',this.value)"/>
+      <input class="prod-input" type="text" placeholder="Nome do produto" value="${p.nome}" oninput="updProd(${p.id},'nome',this.value)"/>
+      <button class="btn-del-prod" onclick="remProd(${p.id})">✕</button>
+    </div>`).join('');
+}
+function selPgto(btn,val){
+  R('pgtoChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('sel-blue','sel-teal','sel-purple'));
+  btn.classList.add('sel-blue');
+  pgto=val; R('pgtoCustom').value=''; atualizarMsg();
+}
+function selMidia(btn,val){
+  R('midiaChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('sel-blue','sel-teal','sel-purple'));
+  btn.classList.add('sel-purple');
+  midia=val; atualizarMsg();
+}
+function atualizarMsg(){
+  const entrega = R('entrega').value||'___';
+  const valor   = R('msgValor').value;
+  const sistema = R('msgSistema').value;
+  const custom  = R('pgtoCustom').value.trim();
+  const pf      = custom||pgto;
+  const linhas  = prods.filter(p=>p.nome&&p.nome.trim())
+    .map(p=>`🔹${String(p.qtd||'01').padStart(2,'0')}- ${p.nome.trim().toUpperCase()}`)
+    .join('\n')||'🔹(adicione os produtos acima)';
+  const msg=`ATACADÃO DO SONO\n⚫Produto:\n${linhas}\n⚫Pagamento:   \n       \n  \n   -   ${pf}\n📍Dia da entrega: ${entrega.toUpperCase()}\n💰Valor: ${numBrl(valor)}\n💱 SISTEMA: ${numBrl(sistema)}\n \n◼️Mídia: ${midia}`;
+  R('msgPreview').textContent=msg;
+}
+function copiarMsg(){
+  const txt=R('msgPreview').textContent;
+  const btn=R('btnCopiar');
+  const ok=()=>{
+    btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado! Cole no WhatsApp agora`;
+    btn.classList.add('copiado');
+    setTimeout(()=>{btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar Mensagem`;btn.classList.remove('copiado');},3500);
+  };
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(ok).catch(()=>fallback(txt,ok));
+  else fallback(txt,ok);
+}
+function fallback(txt,cb){
+  const el=document.createElement('textarea');
+  el.value=txt;el.style.cssText='position:fixed;opacity:0';
+  document.body.appendChild(el);el.select();
+  try{document.execCommand('copy');cb();}catch(e){}
+  document.body.removeChild(el);
+}
+function limparMsg(){
+  if(!confirm('Limpar todos os campos da mensagem?')) return;
+  prods=[];pid=0;renderProds();
+  ['entrega','msgValor','msgSistema','pgtoCustom'].forEach(id=>R(id).value='');
+  pgto='BLU 10X';midia='ENTROU E COMPROU';
+  R('pgtoChips').querySelectorAll('.chip').forEach(b=>{b.classList.remove('sel-blue','sel-teal','sel-purple');if(b.textContent==='BLU 10X')b.classList.add('sel-blue');});
+  R('midiaChips').querySelectorAll('.chip').forEach(b=>{b.classList.remove('sel-blue','sel-teal','sel-purple');if(b.textContent==='ENTROU E COMPROU')b.classList.add('sel-purple');});
+  atualizarMsg();
+  addProd('01','');addProd('01','');
+}
+
+/* ════════════════════════════════════════════
+   TECLADO / ACESSIBILIDADE
+════════════════════════════════════════════ */
+R('overlay').addEventListener('click',e=>{if(e.target===R('overlay'))fecharModal();});
+R('overlayFechar').addEventListener('click',e=>{if(e.target===R('overlayFechar'))fecharModalFechar();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); }
+  if(e.key==='Enter'&&R('panel-somador').classList.contains('active')&&!R('overlay').classList.contains('show')&&!R('overlayFechar').classList.contains('show'))
+    adicionarVenda();
+});
+</script>
+</body>
 </html>

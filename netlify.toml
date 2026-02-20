@@ -1,9 +1,10 @@
-[build]
-  command = "npm run build"
-  publish = "dist"
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=3600"
 
-# SPA fallback (React Router). Mesmo sem router, não atrapalha.
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
