@@ -98,6 +98,7 @@ header{text-align:center;padding:28px 0 24px}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .field-input::placeholder{color:var(--text3)}
 .field-select option{background:var(--card)}
+input[type="date"]::-webkit-calendar-picker-indicator{ filter: invert(0.6) sepia(1) saturate(2) hue-rotate(180deg); cursor:pointer; }
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border:none;border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);letter-spacing:.2px;position:relative;overflow:hidden;width:100%}
@@ -327,6 +328,10 @@ footer span{color:var(--text2)}
           <option value="5" selected>5%</option>
           <option value="6">6%</option>
         </select>
+      </div>
+      <div class="col-full">
+        <label class="field-label">📅 Data da Venda <span style="color:var(--text3);font-weight:400">(deixe em branco para usar hoje)</span></label>
+        <input class="field-input" id="dataVenda" type="date" />
       </div>
     </div>
     <button class="btn btn-primary" onclick="adicionarVenda()">
@@ -619,6 +624,31 @@ footer span{color:var(--text2)}
   </div>
 </div>
 
+<!-- MODAL APAGAR VENDA -->
+<div class="overlay" id="overlayApagar">
+  <div class="modal">
+    <div class="modal-title" style="color:#fca5a5">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Apagar Venda
+    </div>
+    <div style="background:var(--red-soft);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:0.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Venda a apagar</div>
+      <div id="apagarDesc" style="font-size:0.9rem;font-weight:600;color:#fca5a5"></div>
+      <div id="apagarValor" style="font-size:0.82rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:3px"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:4px">
+      Esta ação não pode ser desfeita. Tem certeza?
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModalApagar()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarApagar()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Apagar
+      </button>
+    </div>
+  </div>
+</div>
+
 <footer>
   Atacadão do Sono &nbsp;·&nbsp; <span>Dados salvos localmente</span> &nbsp;·&nbsp; Funciona em qualquer dispositivo
 </footer>
@@ -766,28 +796,63 @@ function adicionarVenda(){
   const raw   = R('valor').value.trim();
   const valor = parseFloat(raw);
   const com   = parseInt(R('comissao').value);
+  const dataInput = R('dataVenda').value; // YYYY-MM-DD ou vazio
+
   if(!raw||isNaN(valor)||valor<=0){
     R('valor').classList.add('error');
     R('valor').focus();
     setTimeout(()=>R('valor').classList.remove('error'),800);
     return;
   }
-  hoje.itens.push({ desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() });
-  saveHoje(hoje);
-  renderLista();
-  R('descricao').value='';
-  R('valor').value='';
-  R('valor').focus();
-  toast('✅ Venda adicionada!');
-}
 
-function apagarVenda(i){
-  if(confirm(`Apagar "${hoje.itens[i].desc}"?`)){
-    hoje.itens.splice(i,1);
+  const dataVenda = dataInput || dataHoje();
+
+  // Se a data da venda é diferente do dia corrente em edição, salva separado no histórico diretamente
+  if(dataVenda !== hoje.data){
+    const hist = loadHist();
+    if(!hist[dataVenda]) hist[dataVenda] = { data: dataVenda, itens: [], totalVendas: 0, totalCom: 0 };
+    const novaVenda = { desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() };
+    hist[dataVenda].itens.push(novaVenda);
+    // recalcula totais do dia
+    let sv=0, sc=0;
+    for(const v of hist[dataVenda].itens){ sv+=v.valor; sc+=arred(v.valor*v.comissao/100); }
+    hist[dataVenda].totalVendas = arred(sv);
+    hist[dataVenda].totalCom    = arred(sc);
+    saveHist(hist);
+    toast(`✅ Venda lançada em ${fmtData(dataVenda)}!`);
+  } else {
+    hoje.itens.push({ desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() });
     saveHoje(hoje);
     renderLista();
-    toast('🗑️ Venda removida','warning');
+    toast('✅ Venda adicionada!');
   }
+
+  R('descricao').value='';
+  R('valor').value='';
+  R('dataVenda').value='';
+  R('valor').focus();
+}
+
+// ── Apagar venda — usa modal próprio (sem confirm() nativo) ──
+let apagarIdx = null;
+
+function apagarVenda(i){
+  apagarIdx = i;
+  const v = hoje.itens[i];
+  R('apagarDesc').textContent  = v.desc;
+  R('apagarValor').textContent = `${brl(v.valor)} · ${v.comissao}% = ${brl(arred(v.valor*v.comissao/100))}`;
+  R('overlayApagar').classList.add('show');
+}
+
+function fecharModalApagar(){ R('overlayApagar').classList.remove('show'); apagarIdx=null; }
+
+function confirmarApagar(){
+  if(apagarIdx===null) return;
+  hoje.itens.splice(apagarIdx,1);
+  saveHoje(hoje);
+  renderLista();
+  fecharModalApagar();
+  toast('🗑️ Venda removida','warning');
 }
 
 function editarVenda(i){
@@ -975,7 +1040,9 @@ function importarJSON(ev){
     try{
       const data = JSON.parse(e.target.result);
       if(!data.historico) throw new Error('Arquivo inválido');
-      if(!confirm(`Restaurar backup de ${data.exportadoEm ? new Date(data.exportadoEm).toLocaleDateString('pt-BR') : '?'}?\n\nIsso vai substituir TODOS os dados atuais.`)) return;
+      const dataExp = data.exportadoEm ? new Date(data.exportadoEm).toLocaleDateString('pt-BR') : '?';
+      const dias = Object.keys(data.historico||{}).length;
+      if(!window.confirm(`Restaurar backup de ${dataExp}?\n${dias} dia(s) no arquivo.\n\nIsso vai substituir TODOS os dados atuais.`)) return;
       saveHist(data.historico);
       if(data.hoje){
         hoje = data.hoje;
@@ -993,8 +1060,7 @@ function importarJSON(ev){
 }
 
 function apagarTudo(){
-  if(!confirm('ATENÇÃO: Isso apaga TODOS os dados permanentemente.\n\nTem certeza? Faça backup antes!')) return;
-  if(!confirm('Última confirmação: APAGAR TUDO mesmo?')) return;
+  if(!window.confirm('⚠️ ATENÇÃO: Isso apaga TODOS os dados permanentemente.\n\nFaça backup antes!\n\nTem certeza?')) return;
   localStorage.removeItem('atac_hoje');
   localStorage.removeItem('atac_hist');
   hoje = { data: dataHoje(), itens: [] };
@@ -1077,7 +1143,7 @@ function fallback(txt,cb){
   document.body.removeChild(el);
 }
 function limparMsg(){
-  if(!confirm('Limpar todos os campos da mensagem?')) return;
+  if(!window.confirm('Limpar todos os campos da mensagem?')) return;
   prods=[];pid=0;renderProds();
   ['entrega','msgValor','msgSistema','pgtoCustom'].forEach(id=>R(id).value='');
   pgto='BLU 10X';midia='ENTROU E COMPROU';
@@ -1092,9 +1158,10 @@ function limparMsg(){
 ════════════════════════════════════════════ */
 R('overlay').addEventListener('click',e=>{if(e.target===R('overlay'))fecharModal();});
 R('overlayFechar').addEventListener('click',e=>{if(e.target===R('overlayFechar'))fecharModalFechar();});
+R('overlayApagar').addEventListener('click',e=>{if(e.target===R('overlayApagar'))fecharModalApagar();});
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); }
-  if(e.key==='Enter'&&R('panel-somador').classList.contains('active')&&!R('overlay').classList.contains('show')&&!R('overlayFechar').classList.contains('show'))
+  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); fecharModalApagar(); }
+  if(e.key==='Enter'&&R('panel-somador').classList.contains('active')&&!R('overlay').classList.contains('show')&&!R('overlayFechar').classList.contains('show')&&!R('overlayApagar').classList.contains('show'))
     adicionarVenda();
 });
 </script>
