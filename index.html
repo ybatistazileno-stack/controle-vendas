@@ -96,8 +96,17 @@ header{text-align:center;padding:24px 0 20px}
 .card-title::after{content:'';flex:1;height:1px;background:var(--border)}
 
 /* ── DATE BADGE ── */
-.date-badge{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:0.82rem;font-weight:600;color:var(--text2);margin-bottom:12px}
-.date-badge .dot{width:6px;height:6px;border-radius:50%;background:#7fbfaa;box-shadow:0 0 6px rgba(127,191,170,0.5);animation:pulse 2s infinite;flex-shrink:0}
+.date-badge{display:flex;align-items:flex-start;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-size:0.82rem;font-weight:600;color:var(--text2);margin-bottom:14px;width:100%}
+.date-badge .dot{width:7px;height:7px;border-radius:50%;background:#7fbfaa;box-shadow:0 0 7px rgba(127,191,170,0.6);animation:pulse 2s infinite;flex-shrink:0;margin-top:4px}
+.badge-info{flex:1;display:flex;flex-direction:column;gap:6px}
+.badge-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.badge-row span{color:var(--text);font-weight:700;font-size:0.85rem}
+.badge-sep{color:var(--text3)!important;font-weight:400!important}
+#relogioHoje{font-family:'JetBrains Mono',monospace;font-size:0.83rem!important;color:#7fbfaa!important}
+.badge-weather{display:flex;align-items:center;gap:7px;font-size:0.78rem;color:var(--text2);font-weight:500}
+.badge-weather span{font-weight:500}
+#weatherTemp{font-family:'JetBrains Mono',monospace;color:#a8c4d8;font-weight:700;font-size:0.82rem}
+#weatherDesc{color:var(--text3);font-size:0.75rem;text-transform:capitalize}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 
 /* ── FIELDS ── */
@@ -177,13 +186,14 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5) sepia(1
 .mes-nav button{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .15s}
 .mes-nav button:hover{border-color:var(--border2);color:var(--text)}
 .mes-titulo{font-family:'JetBrains Mono',monospace;font-size:0.9rem;font-weight:700;color:var(--text);text-transform:capitalize;letter-spacing:.5px}
-.hist-resumo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.hist-resumo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .hr-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
 .hr-label{font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:5px}
 .hr-val{font-family:'JetBrains Mono',monospace;font-size:0.88rem;font-weight:700;letter-spacing:-0.3px}
 .hr-card.hv .hr-val{color:#a8c4d8}
 .hr-card.hc .hr-val{color:#a8c4b8}
 .hr-card.hn .hr-val{color:var(--text2)}
+.hr-card.hm .hr-val{color:#c4b5fd}
 
 .dia-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s}
 .dia-item:hover{border-color:var(--border2)}
@@ -200,11 +210,15 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5) sepia(1
 .dia-item.expanded .dia-chevron{transform:rotate(90deg)}
 .dia-vendas{display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
 .dia-item.expanded .dia-vendas{display:block}
-.dv-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.035);font-size:0.8rem}
+.dv-row{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.035);font-size:0.8rem}
 .dv-row:last-child{border-bottom:none}
 .dv-desc{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dv-val{color:#a8c4d8;font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap}
 .dv-com{color:#a8c4b8;font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap}
+.dv-acoes{display:flex;gap:4px;flex-shrink:0}
+.btn-dv{width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text3);cursor:pointer;font-size:0.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-dv.edit:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.btn-dv.del:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
 .hist-empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:0.86rem;line-height:1.6}
 .hist-empty .ei{font-size:2rem;display:block;margin-bottom:10px;opacity:.25}
 
@@ -230,9 +244,13 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5) sepia(1
 .preview-title{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:var(--text3);display:flex;align-items:center;gap:7px}
 .preview-dot{width:5px;height:5px;border-radius:50%;background:#7fbfaa;box-shadow:0 0 5px rgba(127,191,170,0.4);animation:pulse 2s infinite}
 .preview-body{padding:18px;font-family:'JetBrains Mono',monospace;font-size:0.81rem;line-height:2;color:#94a3b8;white-space:pre-wrap;min-height:120px}
-.btn-copy{width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#1e4a40,#1a3d4a);border:1px solid rgba(127,191,170,0.2);border-radius:var(--radius-sm);color:#a8c4b8;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(30,74,64,.35);letter-spacing:.3px}
+.btn-copy{width:100%;padding:14px;background:linear-gradient(135deg,#1e4a40,#1a3d4a);border:1px solid rgba(127,191,170,0.2);border-radius:var(--radius-sm);color:#a8c4b8;font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(30,74,64,.35);letter-spacing:.3px}
 .btn-copy:hover{background:linear-gradient(135deg,#265e52,#1e4a5c);transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,74,64,.45)}
 .btn-copy.copiado{background:linear-gradient(135deg,#1e4a2a,#1e4a40);box-shadow:0 4px 16px rgba(30,74,42,.4)}
+.btn-whatsapp{width:100%;padding:14px;background:linear-gradient(135deg,#1a3d28,#1a3d1a);border:1px solid rgba(37,211,102,0.25);border-radius:var(--radius-sm);color:#86efac;font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(26,61,26,.4);letter-spacing:.3px;position:relative;overflow:hidden}
+.btn-whatsapp::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0.06),transparent);pointer-events:none}
+.btn-whatsapp:hover{background:linear-gradient(135deg,#1e4d30,#1e4d1e);border-color:rgba(37,211,102,0.45);transform:translateY(-1px);box-shadow:0 6px 22px rgba(37,211,102,0.2)}
+.btn-whatsapp:active{transform:scale(0.98)}
 
 /* ── MODAL ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:999;align-items:center;justify-content:center;padding:16px}
@@ -265,7 +283,6 @@ footer span{color:var(--text2)}
   .form-grid{grid-template-columns:1fr}
   .form-grid .col-full{grid-column:1}
   .hist-resumo{grid-template-columns:1fr 1fr}
-  .hist-resumo .hr-card:last-child{display:none}
   .backup-grid{grid-template-columns:1fr}
   .totais{gap:8px}
   .total-card{padding:14px 12px}
@@ -440,7 +457,18 @@ footer span{color:var(--text2)}
 
   <div class="date-badge">
     <div class="dot"></div>
-    <span id="dataHoje"></span>
+    <div class="badge-info">
+      <div class="badge-row">
+        <span id="dataHoje"></span>
+        <span class="badge-sep">·</span>
+        <span id="relogioHoje"></span>
+      </div>
+      <div class="badge-weather" id="weatherRow">
+        <span id="weatherIcon">⏳</span>
+        <span id="weatherTemp"></span>
+        <span id="weatherDesc"></span>
+      </div>
+    </div>
   </div>
 
   <div class="totais">
@@ -479,7 +507,7 @@ footer span{color:var(--text2)}
         </select>
       </div>
       <div class="col-full">
-        <label class="field-label">Data da Venda <span style="color:var(--text3);font-weight:400">(deixe em branco para usar hoje)</span></label>
+        <label class="field-label">📅 Data da Venda <span style="color:var(--red);font-weight:600">*obrigatório</span></label>
         <input class="field-input" id="dataVenda" type="date" />
       </div>
     </div>
@@ -533,6 +561,7 @@ footer span{color:var(--text2)}
     <div class="hr-card hv"><div class="hr-label">Vendas no Mês</div><div class="hr-val" id="hrVendas">R$ 0,00</div></div>
     <div class="hr-card hc"><div class="hr-label">Comissão no Mês</div><div class="hr-val" id="hrComissoes">R$ 0,00</div></div>
     <div class="hr-card hn"><div class="hr-label">Dias Trabalhados</div><div class="hr-val" id="hrDias">0</div></div>
+    <div class="hr-card hm"><div class="hr-label">% Médio do Mês</div><div class="hr-val" id="hrMedia">—</div></div>
   </div>
 
   <div id="histLista">
@@ -624,10 +653,16 @@ footer span{color:var(--text2)}
     <div class="preview-body" id="msgPreview"></div>
   </div>
 
-  <button class="btn-copy" id="btnCopiar" onclick="copiarMsg()">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-    Copiar Mensagem
-  </button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <button class="btn-copy" id="btnCopiar" onclick="copiarMsg()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copiar
+    </button>
+    <button class="btn-whatsapp" id="btnWhatsapp" onclick="enviarWhatsapp()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      WhatsApp
+    </button>
+  </div>
 
   <div style="margin-top:10px">
     <button class="btn btn-danger" onclick="limparMsg()">
@@ -799,7 +834,7 @@ footer span{color:var(--text2)}
     <div class="form-grid">
       <div>
         <label class="field-label">Valor (R$)</label>
-        <input class="field-input" id="editValor" type="number" min="0" step="0.01" />
+        <input class="field-input" id="editValor" type="number" min="0" step="0.01" inputmode="decimal" />
       </div>
       <div>
         <label class="field-label">Comissão</label>
@@ -809,6 +844,10 @@ footer span{color:var(--text2)}
           <option value="5">5%</option>
           <option value="6">6%</option>
         </select>
+      </div>
+      <div class="col-full">
+        <label class="field-label">📅 Data da Venda <span style="color:var(--text3);font-weight:400">(muda o dia se necessário)</span></label>
+        <input class="field-input" id="editDataVenda" type="date" />
       </div>
     </div>
     <div class="modal-actions">
@@ -863,6 +902,71 @@ footer span{color:var(--text2)}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="fecharModalApagar()">Cancelar</button>
       <button class="btn btn-danger" onclick="confirmarApagar()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Apagar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VENDA DO HISTÓRICO -->
+<div class="overlay" id="overlayEditHist">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar Venda do Histórico
+    </div>
+    <div style="margin-bottom:12px">
+      <label class="field-label">Descrição</label>
+      <input class="field-input" id="editHistDesc" type="text" placeholder="Descrição da venda" />
+    </div>
+    <div class="form-grid">
+      <div>
+        <label class="field-label">Valor (R$)</label>
+        <input class="field-input" id="editHistValor" type="number" min="0" step="0.01" inputmode="decimal" />
+      </div>
+      <div>
+        <label class="field-label">Comissão</label>
+        <select class="field-select" id="editHistComissao" style="cursor:pointer">
+          <option value="3">3%</option>
+          <option value="4">4%</option>
+          <option value="5">5%</option>
+          <option value="6">6%</option>
+        </select>
+      </div>
+      <div class="col-full">
+        <label class="field-label">📅 Data da Venda <span style="color:var(--text3);font-weight:400">(muda o dia se necessário)</span></label>
+        <input class="field-input" id="editHistData" type="date" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharEditHist()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoHist()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL APAGAR VENDA DO HISTÓRICO -->
+<div class="overlay" id="overlayApagarHist">
+  <div class="modal">
+    <div class="modal-title" style="color:#fca5a5">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Apagar Venda do Histórico
+    </div>
+    <div style="background:var(--red-soft);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:0.75rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Venda a apagar</div>
+      <div id="apagarHistDesc" style="font-size:0.9rem;font-weight:600;color:#fca5a5"></div>
+      <div id="apagarHistValor" style="font-size:0.8rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:4px"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:4px">
+      Esta ação não pode ser desfeita. Tem certeza?
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharApagarHist()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarApagarHist()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
         Apagar
       </button>
@@ -969,7 +1073,56 @@ window.addEventListener('load', ()=>{
   atualizarMsg();
   addProd('01','');
   addProd('01','');
+  iniciarRelogio();
+  buscarClima();
 });
+
+/* ── RELÓGIO ── */
+function iniciarRelogio(){
+  function tick(){
+    const agora = new Date();
+    const h = String(agora.getHours()).padStart(2,'0');
+    const m = String(agora.getMinutes()).padStart(2,'0');
+    const s = String(agora.getSeconds()).padStart(2,'0');
+    const el = R('relogioHoje');
+    if(el) el.textContent = `${h}:${m}:${s}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* ── CLIMA — Formosa, Goiás (lat:-15.53, lon:-47.33) ── */
+async function buscarClima(){
+  try {
+    // Open-Meteo — gratuito, sem chave de API
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=-15.5328&longitude=-47.3328&current=temperature_2m,weathercode&timezone=America%2FSao_Paulo';
+    const res  = await fetch(url);
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const code = data.current.weathercode;
+    const { icon, desc } = climaDesc(code);
+    R('weatherIcon').textContent = icon;
+    R('weatherTemp').textContent = `${temp}°C`;
+    R('weatherDesc').textContent = `· ${desc} · Formosa-GO`;
+  } catch(e) {
+    R('weatherIcon').textContent = '—';
+    R('weatherTemp').textContent = '';
+    R('weatherDesc').textContent = 'clima indisponível';
+  }
+}
+
+function climaDesc(code){
+  if(code===0)               return { icon:'☀️', desc:'Céu limpo' };
+  if(code<=2)                return { icon:'🌤️', desc:'Parcialmente nublado' };
+  if(code<=3)                return { icon:'☁️', desc:'Nublado' };
+  if(code<=49)               return { icon:'🌫️', desc:'Névoa/neblina' };
+  if(code<=59)               return { icon:'🌦️', desc:'Chuvisco' };
+  if(code<=69)               return { icon:'🌧️', desc:'Chuva' };
+  if(code<=79)               return { icon:'🌨️', desc:'Neve/granizo' };
+  if(code<=82)               return { icon:'🌧️', desc:'Chuva forte' };
+  if(code<=99)               return { icon:'⛈️', desc:'Tempestade' };
+  return { icon:'🌡️', desc:'—' };
+}
 
 function calcTotais(){
   let sv=0, sc=0;
@@ -1014,12 +1167,13 @@ function renderLista(){
 }
 
 function adicionarVenda(){
-  const desc  = R('descricao').value.trim();
-  const raw   = R('valor').value.trim();
-  const valor = parseFloat(raw);
-  const com   = parseInt(R('comissao').value);
-  const dataInput = R('dataVenda').value; // YYYY-MM-DD ou vazio
+  const desc      = R('descricao').value.trim();
+  const raw       = R('valor').value.trim();
+  const valor     = parseFloat(raw);
+  const com       = parseInt(R('comissao').value);
+  const dataInput = R('dataVenda').value;
 
+  // Validação — valor obrigatório
   if(!raw||isNaN(valor)||valor<=0){
     R('valor').classList.add('error');
     R('valor').focus();
@@ -1027,15 +1181,23 @@ function adicionarVenda(){
     return;
   }
 
-  const dataVenda = dataInput || dataHoje();
+  // Validação — data obrigatória
+  if(!dataInput){
+    R('dataVenda').classList.add('error');
+    R('dataVenda').focus();
+    toast('⚠️ Preencha a data da venda!','warning');
+    setTimeout(()=>R('dataVenda').classList.remove('error'),800);
+    return;
+  }
 
-  // Se a data da venda é diferente do dia corrente em edição, salva separado no histórico diretamente
+  const dataVenda = dataInput;
+
+  // Se a data é diferente do dia em aberto, vai direto para o histórico
   if(dataVenda !== hoje.data){
     const hist = loadHist();
     if(!hist[dataVenda]) hist[dataVenda] = { data: dataVenda, itens: [], totalVendas: 0, totalCom: 0 };
     const novaVenda = { desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() };
     hist[dataVenda].itens.push(novaVenda);
-    // recalcula totais do dia
     let sv=0, sc=0;
     for(const v of hist[dataVenda].itens){ sv+=v.valor; sc+=arred(v.valor*v.comissao/100); }
     hist[dataVenda].totalVendas = arred(sv);
@@ -1046,7 +1208,8 @@ function adicionarVenda(){
     hoje.itens.push({ desc: desc||'Venda sem descrição', valor: arred(valor), comissao: com, ts: Date.now() });
     saveHoje(hoje);
     renderLista();
-    toast('✅ Venda adicionada!');
+    preencherMensagem(desc||'Venda sem descrição', arred(valor));
+    toast('✅ Venda adicionada! Mensagem preenchida 📩');
   }
 
   R('descricao').value='';
@@ -1079,9 +1242,10 @@ function confirmarApagar(){
 
 function editarVenda(i){
   editIdx=i;
-  R('editDesc').value  = hoje.itens[i].desc;
-  R('editValor').value = hoje.itens[i].valor;
-  R('editComissao').value = hoje.itens[i].comissao;
+  R('editDesc').value      = hoje.itens[i].desc;
+  R('editValor').value     = hoje.itens[i].valor;
+  R('editComissao').value  = hoje.itens[i].comissao;
+  R('editDataVenda').value = hoje.data; // preenche com a data atual do bloco
   R('overlay').classList.add('show');
 }
 
@@ -1089,16 +1253,34 @@ function fecharModal(){ R('overlay').classList.remove('show'); editIdx=null; }
 
 function salvarEdicao(){
   if(editIdx===null) return;
-  const valor = parseFloat(R('editValor').value);
+  const valor    = parseFloat(R('editValor').value);
+  const novaData = R('editDataVenda').value || hoje.data;
   if(isNaN(valor)||valor<=0) return;
-  hoje.itens[editIdx]={
-    desc: R('editDesc').value.trim()||'Venda sem descrição',
-    valor: arred(valor),
+
+  const vendaAtualizada = {
+    desc:     R('editDesc').value.trim()||'Venda sem descrição',
+    valor:    arred(valor),
     comissao: parseInt(R('editComissao').value),
-    ts: hoje.itens[editIdx].ts
+    ts:       hoje.itens[editIdx].ts
   };
-  saveHoje(hoje); renderLista(); fecharModal();
-  toast('✅ Venda atualizada!');
+
+  if(novaData !== hoje.data){
+    // Mover para outro dia no histórico
+    hoje.itens.splice(editIdx, 1);
+    saveHoje(hoje);
+    const hist = loadHist();
+    if(!hist[novaData]) hist[novaData] = { data: novaData, itens: [], totalVendas: 0, totalCom: 0 };
+    hist[novaData].itens.push(vendaAtualizada);
+    recalcDia(hist, novaData);
+    saveHist(hist);
+    toast(`✅ Venda movida para ${fmtData(novaData)}!`);
+  } else {
+    hoje.itens[editIdx] = vendaAtualizada;
+    saveHoje(hoje);
+    toast('✅ Venda atualizada!');
+  }
+
+  renderLista(); fecharModal();
 }
 
 /* ════════════════════════════════════════════
@@ -1159,9 +1341,10 @@ function renderHistorico(){
 
   let totV=0, totC=0;
   dias.forEach(d=>{ totV+=hist[d].totalVendas; totC+=hist[d].totalCom; });
-  R('hrVendas').textContent   = brl(arred(totV));
+  R('hrVendas').textContent    = brl(arred(totV));
   R('hrComissoes').textContent = brl(arred(totC));
-  R('hrDias').textContent     = dias.length;
+  R('hrDias').textContent      = dias.length;
+  R('hrMedia').textContent     = (totV>0) ? ((arred(totC)/arred(totV)*100).toFixed(2)+'%') : '—';
 
   const el = R('histLista');
   if(!dias.length){
@@ -1171,12 +1354,16 @@ function renderHistorico(){
   el.innerHTML = dias.map(d=>{
     const dh = hist[d];
     const n  = dh.itens.length;
-    const vendasRows = dh.itens.map(v=>{
+    const vendasRows = dh.itens.map((v,vi)=>{
       const com = arred(v.valor * v.comissao/100);
       return `<div class="dv-row">
-        <span class="dv-desc">${esc(v.desc)}</span>
+        <span class="dv-desc" title="${esc(v.desc)}">${esc(v.desc)}</span>
         <span class="dv-val">${brl(v.valor)}</span>
         <span class="dv-com">${brl(com)}</span>
+        <div class="dv-acoes">
+          <button class="btn-dv edit" title="Editar" onclick="event.stopPropagation();editarVendaHist('${d}',${vi})">✏️</button>
+          <button class="btn-dv del"  title="Apagar" onclick="event.stopPropagation();apagarVendaHist('${d}',${vi})">🗑️</button>
+        </div>
       </div>`;
     }).join('');
     return `<div class="dia-item" onclick="toggleDia(this)">
@@ -1199,6 +1386,89 @@ function renderHistorico(){
 }
 
 function toggleDia(el){ el.classList.toggle('expanded'); }
+
+/* ── Editar/Apagar vendas do HISTÓRICO ── */
+let histEditData = null, histEditIdx = null;
+let histApagarData = null, histApagarIdx = null;
+
+function editarVendaHist(data, idx){
+  const hist = loadHist();
+  const v = hist[data].itens[idx];
+  histEditData = data;
+  histEditIdx  = idx;
+  R('editHistDesc').value    = v.desc;
+  R('editHistValor').value   = v.valor;
+  R('editHistComissao').value= v.comissao;
+  R('editHistData').value    = data;
+  R('overlayEditHist').classList.add('show');
+}
+
+function fecharEditHist(){ R('overlayEditHist').classList.remove('show'); histEditData=null; histEditIdx=null; }
+
+function salvarEdicaoHist(){
+  if(histEditData===null || histEditIdx===null) return;
+  const novaDesc  = R('editHistDesc').value.trim() || 'Venda sem descrição';
+  const novoValor = parseFloat(R('editHistValor').value);
+  const novaCom   = parseInt(R('editHistComissao').value);
+  const novaData  = R('editHistData').value;
+  if(isNaN(novoValor)||novoValor<=0) return;
+
+  const hist = loadHist();
+  const venda = { ...hist[histEditData].itens[histEditIdx], desc:novaDesc, valor:arred(novoValor), comissao:novaCom };
+
+  // Se a data mudou, move a venda de dia
+  if(novaData && novaData !== histEditData){
+    // Remove do dia original
+    hist[histEditData].itens.splice(histEditIdx, 1);
+    recalcDia(hist, histEditData);
+    // Se dia ficou vazio, remove
+    if(hist[histEditData].itens.length === 0) delete hist[histEditData];
+    // Adiciona no novo dia
+    if(!hist[novaData]) hist[novaData] = { data: novaData, itens: [], totalVendas: 0, totalCom: 0 };
+    hist[novaData].itens.push(venda);
+    recalcDia(hist, novaData);
+  } else {
+    hist[histEditData].itens[histEditIdx] = venda;
+    recalcDia(hist, histEditData);
+  }
+
+  saveHist(hist);
+  fecharEditHist();
+  renderHistorico();
+  toast('✅ Venda atualizada no histórico!');
+}
+
+function apagarVendaHist(data, idx){
+  const hist = loadHist();
+  const v = hist[data].itens[idx];
+  histApagarData = data;
+  histApagarIdx  = idx;
+  R('apagarHistDesc').textContent  = v.desc;
+  R('apagarHistValor').textContent = `${brl(v.valor)} · ${v.comissao}% = ${brl(arred(v.valor*v.comissao/100))} · ${fmtData(data)}`;
+  R('overlayApagarHist').classList.add('show');
+}
+
+function fecharApagarHist(){ R('overlayApagarHist').classList.remove('show'); histApagarData=null; histApagarIdx=null; }
+
+function confirmarApagarHist(){
+  if(histApagarData===null || histApagarIdx===null) return;
+  const hist = loadHist();
+  hist[histApagarData].itens.splice(histApagarIdx, 1);
+  recalcDia(hist, histApagarData);
+  if(hist[histApagarData].itens.length === 0) delete hist[histApagarData];
+  saveHist(hist);
+  fecharApagarHist();
+  renderHistorico();
+  toast('🗑️ Venda removida do histórico','warning');
+}
+
+function recalcDia(hist, data){
+  if(!hist[data]) return;
+  let sv=0, sc=0;
+  for(const v of hist[data].itens){ sv+=v.valor; sc+=arred(v.valor*v.comissao/100); }
+  hist[data].totalVendas = arred(sv);
+  hist[data].totalCom    = arred(sc);
+}
 
 /* ════════════════════════════════════════════
    BACKUP
@@ -1348,16 +1618,51 @@ function atualizarMsg(){
   const msg=`ATACADÃO DO SONO\n⚫Produto:\n${linhas}\n⚫Pagamento:   \n       \n  \n   -   ${pf}\n📍Dia da entrega: ${entrega.toUpperCase()}\n💰Valor: ${numBrl(valor)}\n💱 SISTEMA: ${numBrl(sistema)}\n \n◼️Mídia: ${midia}`;
   R('msgPreview').textContent=msg;
 }
+
+function preencherMensagem(desc, valor){
+  // Entrega: sempre "FOI HOJE" para vendas do dia (sobrescreve pois é certeza)
+  R('entrega').value = 'FOI HOJE';
+
+  // Valor: preenche com o valor da venda lançada
+  R('msgValor').value = valor;
+
+  // Sistema: deixa vazio para preencher manualmente (você sabe o valor do sistema)
+  // Pagamento e Mídia: mantém o que já estava selecionado (padrão BLU 10X / ENTROU E COMPROU)
+
+  atualizarMsg();
+
+  // Pisca aba Mensagem para avisar que está pronta para completar os produtos
+  setTimeout(()=>{
+    const tab = R('tab-mensagem');
+    tab.style.transition = 'all 0.3s';
+    tab.style.background = 'rgba(20,184,166,0.3)';
+    tab.style.color = '#5eead4';
+    setTimeout(()=>{
+      tab.style.background = '';
+      tab.style.color = '';
+    }, 1800);
+  }, 200);
+}
 function copiarMsg(){
   const txt=R('msgPreview').textContent;
   const btn=R('btnCopiar');
   const ok=()=>{
-    btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado! Cole no WhatsApp agora`;
+    btn.innerHTML=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado!`;
     btn.classList.add('copiado');
-    setTimeout(()=>{btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar Mensagem`;btn.classList.remove('copiado');},3500);
+    setTimeout(()=>{btn.innerHTML=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar`;btn.classList.remove('copiado');},3000);
   };
   if(navigator.clipboard) navigator.clipboard.writeText(txt).then(ok).catch(()=>fallback(txt,ok));
   else fallback(txt,ok);
+}
+
+function enviarWhatsapp(){
+  const txt = R('msgPreview').textContent;
+  if(!txt || txt.includes('adicione os produtos acima')){
+    toast('⚠️ Preencha os produtos antes de enviar!','warning'); return;
+  }
+  // Abre WhatsApp com a mensagem — sem número fixo, o app abre a tela de seleção de contato
+  const url = 'https://wa.me/?text=' + encodeURIComponent(txt);
+  window.open(url, '_blank');
 }
 function fallback(txt,cb){
   const el=document.createElement('textarea');
@@ -1383,8 +1688,10 @@ function limparMsg(){
 R('overlay').addEventListener('click',e=>{if(e.target===R('overlay'))fecharModal();});
 R('overlayFechar').addEventListener('click',e=>{if(e.target===R('overlayFechar'))fecharModalFechar();});
 R('overlayApagar').addEventListener('click',e=>{if(e.target===R('overlayApagar'))fecharModalApagar();});
+R('overlayEditHist').addEventListener('click',e=>{if(e.target===R('overlayEditHist'))fecharEditHist();});
+R('overlayApagarHist').addEventListener('click',e=>{if(e.target===R('overlayApagarHist'))fecharApagarHist();});
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); fecharModalApagar(); cancelarEditFutura(); }
+  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); fecharModalApagar(); fecharEditHist(); fecharApagarHist(); cancelarEditFutura(); }
   if(e.key==='Enter'&&R('panel-somador').classList.contains('active')&&!R('overlay').classList.contains('show')&&!R('overlayFechar').classList.contains('show')&&!R('overlayApagar').classList.contains('show'))
     adicionarVenda();
 });
