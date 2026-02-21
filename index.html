@@ -1196,6 +1196,53 @@ id="panel-historico">
 </div>
 
 
+<!-- MODAL CONFIRMAR RESTAURAR BACKUP -->
+<div class="overlay" id="overlayRestaurar">
+  <div class="modal">
+    <div class="modal-title" style="color:#86efac">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Restaurar Backup
+    </div>
+    <div style="background:var(--green-soft);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div id="restaurarInfo" style="font-size:0.88rem;line-height:1.8;font-family:'JetBrains Mono',monospace;color:var(--text2)"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:4px">
+      Os dados atuais serão <strong style="color:var(--red)">substituídos</strong> pelos dados do backup. Confirma?
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cancelarRestaurar()">Cancelar</button>
+      <button class="btn btn-green" id="btnConfirmarRestaurar" onclick="confirmarRestaurar()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Restaurar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR APAGAR TUDO -->
+<div class="overlay" id="overlayApagarTudo">
+  <div class="modal">
+    <div class="modal-title" style="color:#fca5a5">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Apagar Todos os Dados
+    </div>
+    <div style="background:var(--red-soft);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px;margin-bottom:14px">
+      <p style="font-size:0.88rem;color:#fca5a5;font-weight:600">⚠️ Esta ação é permanente e não pode ser desfeita!</p>
+      <p style="font-size:0.82rem;color:var(--text2);margin-top:6px">Histórico, vendas do dia e vendas futuras serão apagados para sempre.</p>
+    </div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.6;margin-bottom:4px">
+      Tem certeza? Faça backup antes!
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="R('overlayApagarTudo').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarApagarTudo()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Apagar tudo
+      </button>
+    </div>
+  </div>
+</div>
+
 <footer>
   Atacadão do Sono &nbsp;·&nbsp; <span>Dados salvos localmente</span> &nbsp;·&nbsp; Funciona em qualquer dispositivo
 </footer>
@@ -1754,25 +1801,31 @@ function exportarCSV(){
   toast('✅ CSV exportado! Abra no Excel.');
 }
 
+// Dados pendentes de restaurar (aguarda confirmação do modal)
+let _pendingRestore = null;
+
 function importarJSON(ev){
   const file = ev.target.files[0];
-  if(!file) return;
+  if(!file){ ev.target.value=''; return; }
   const reader = new FileReader();
   reader.onload = e => {
     try{
       const data = JSON.parse(e.target.result);
-      // aceita tanto versão antiga (só historico) quanto nova
       if(!data.historico && !data.hoje) throw new Error('Arquivo inválido');
-      const dataExp = data.exportadoEm ? new Date(data.exportadoEm).toLocaleDateString('pt-BR') : '?';
-      const dias = Object.keys(data.historico||{}).length;
-      const futQtd = (data.futuras||[]).length;
-      if(!window.confirm(`Restaurar backup de ${dataExp}?\n${dias} dia(s) de histórico · ${futQtd} venda(s) futura(s) no arquivo.\n\nIsso vai substituir TODOS os dados atuais.`)) return;
-      if(data.historico) saveHist(data.historico);
-      if(data.hoje){ hoje = data.hoje; saveHoje(hoje); }
-      if(data.futuras) saveFuturas(data.futuras);
-      renderLista();
-      toast('✅ Backup restaurado com sucesso!');
-      atualizarBackupInfo();
+      // Guarda os dados e abre modal de confirmação
+      _pendingRestore = data;
+      const dataExp  = data.exportadoEm ? new Date(data.exportadoEm).toLocaleDateString('pt-BR') : '?';
+      const dias     = Object.keys(data.historico||{}).length;
+      const vendas   = Object.values(data.historico||{}).reduce((s,d)=>s+d.itens.length,0);
+      const futQtd   = (data.futuras||[]).length;
+      const hojeQtd  = (data.hoje?.itens||[]).length;
+      R('restaurarInfo').innerHTML =
+        `<span style="color:var(--text3)">📅 Exportado em:</span> <span style="color:var(--text)">${dataExp}</span>\n`+
+        `<span style="color:var(--text3)">📆 Dias no histórico:</span> <span style="color:#86efac">${dias} dia${dias!==1?'s':''}</span>\n`+
+        `<span style="color:var(--text3)">💰 Vendas no histórico:</span> <span style="color:#86efac">${vendas}</span>\n`+
+        `<span style="color:var(--text3)">📋 Vendas em aberto:</span> <span style="color:#86efac">${hojeQtd}</span>`+
+        (futQtd?`\n<span style="color:var(--text3)">🔮 Vendas futuras:</span> <span style="color:#86efac">${futQtd}</span>`:'');
+      R('overlayRestaurar').classList.add('show');
     } catch(err){
       toast('❌ Arquivo inválido ou corrompido. Certifique-se que é um .json exportado pelo sistema.','warning',5000);
     }
@@ -1781,15 +1834,43 @@ function importarJSON(ev){
   reader.readAsText(file, 'UTF-8');
 }
 
+function cancelarRestaurar(){
+  _pendingRestore = null;
+  R('overlayRestaurar').classList.remove('show');
+}
+
+function confirmarRestaurar(){
+  if(!_pendingRestore) return;
+  const data = _pendingRestore;
+  try{
+    if(data.historico) saveHist(data.historico);
+    if(data.hoje){ hoje = data.hoje; saveHoje(hoje); }
+    if(data.futuras) saveFuturas(data.futuras);
+    renderLista();
+    if(typeof renderFuturas === 'function') renderFuturas();
+    toast('✅ Backup restaurado com sucesso!');
+    atualizarBackupInfo();
+  } catch(err){
+    toast('❌ Erro ao restaurar. Tente novamente.','warning',4000);
+  }
+  _pendingRestore = null;
+  R('overlayRestaurar').classList.remove('show');
+}
+
 function apagarTudo(){
-  if(!window.confirm('⚠️ ATENÇÃO: Isso apaga TODOS os dados permanentemente.\n\nFaça backup antes!\n\nTem certeza?')) return;
+  R('overlayApagarTudo').classList.add('show');
+}
+
+function confirmarApagarTudo(){
   localStorage.removeItem('atac_hoje');
   localStorage.removeItem('atac_hist');
   localStorage.removeItem(FUTURAS_KEY);
   hoje = { data: dataHoje(), itens: [] };
   saveHoje(hoje);
   renderLista();
+  if(typeof renderFuturas === 'function') renderFuturas();
   atualizarBackupInfo();
+  R('overlayApagarTudo').classList.remove('show');
   toast('🗑️ Todos os dados apagados','warning');
 }
 
@@ -1901,7 +1982,7 @@ function fallback(txt,cb){
   document.body.removeChild(el);
 }
 function limparMsg(){
-  if(!window.confirm('Limpar todos os campos da mensagem?')) return;
+  if(!R('msgPreview').textContent || R('msgPreview').textContent.trim()==='') return;
   prods=[];pid=0;renderProds();
   ['entrega','msgValor','msgSistema','pgtoCustom'].forEach(id=>R(id).value='');
   pgto='BLU 10X';midia='ENTROU E COMPROU';
@@ -1919,8 +2000,15 @@ R('overlayFechar').addEventListener('click',e=>{if(e.target===R('overlayFechar')
 R('overlayApagar').addEventListener('click',e=>{if(e.target===R('overlayApagar'))fecharModalApagar();});
 R('overlayEditHist').addEventListener('click',e=>{if(e.target===R('overlayEditHist'))fecharEditHist();});
 R('overlayApagarHist').addEventListener('click',e=>{if(e.target===R('overlayApagarHist'))fecharApagarHist();});
+R('overlayRestaurar').addEventListener('click',e=>{if(e.target===R('overlayRestaurar'))cancelarRestaurar();});
+R('overlayApagarTudo').addEventListener('click',e=>{if(e.target===R('overlayApagarTudo'))R('overlayApagarTudo').classList.remove('show');});
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ fecharModal(); fecharModalFechar(); fecharModalApagar(); fecharEditHist(); fecharApagarHist(); cancelarEditFutura(); }
+  if(e.key==='Escape'){
+    fecharModal(); fecharModalFechar(); fecharModalApagar();
+    fecharEditHist(); fecharApagarHist(); cancelarEditFutura();
+    cancelarRestaurar();
+    R('overlayApagarTudo').classList.remove('show');
+  }
   if(e.key==='Enter'&&R('panel-somador').classList.contains('active')&&!R('overlay').classList.contains('show')&&!R('overlayFechar').classList.contains('show')&&!R('overlayApagar').classList.contains('show'))
     adicionarVenda();
 });
@@ -2022,13 +2110,11 @@ function desfazerEntrega(idx){
 
 function excluirFutura(idx){
   const arr = loadFuturas();
-  const v = arr[idx];
-  if(!window.confirm(`Excluir a venda de "${v.cliente}"?\n\nEsta ação não pode ser desfeita.`)) return;
   arr.splice(idx,1);
   saveFuturas(arr);
   if(futurasEditIdx === idx) cancelarEditFutura();
   renderFuturas();
-  toast('Venda futura removida','warning');
+  toast('🗑️ Venda futura removida','warning');
 }
 
 function filtrarFuturas(filtro, el){
