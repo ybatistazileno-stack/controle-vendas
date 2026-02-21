@@ -81,8 +81,9 @@ header{text-align:center;padding:24px 0 20px}
 .total-card::after{content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;filter:blur(30px);pointer-events:none}
 .total-card.vendas{background:linear-gradient(135deg,rgba(42,63,92,0.35),rgba(24,28,38,0.9))}
 .total-card.vendas::after{background:rgba(124,156,191,0.12)}
-.total-card.comissoes{background:linear-gradient(135deg,rgba(42,74,64,0.35),rgba(24,28,38,0.9))}
-.total-card.comissoes::after{background:rgba(127,191,170,0.1)}
+.total-card.comissoes{background:linear-gradient(135deg,rgba(42,74,64,0.5),rgba(24,28,38,0.9));border-color:rgba(127,191,170,0.18)}
+.total-card.comissoes::after{background:rgba(127,191,170,0.18)}
+.total-card.comissoes .tc-value{color:#86efb8;text-shadow:0 0 18px rgba(127,191,170,0.35)}
 .tc-icon{font-size:1.15rem;margin-bottom:6px;display:block;opacity:.9}
 .tc-label{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:var(--text3);margin-bottom:6px}
 .tc-value{font-family:'JetBrains Mono',monospace;font-size:clamp(1rem,3.8vw,1.4rem);font-weight:700;line-height:1;letter-spacing:-0.5px}
@@ -149,7 +150,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5) sepia(1
 .venda-desc{font-size:0.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px;color:var(--text)}
 .venda-tag{display:inline-flex;align-items:center;font-size:0.58rem;font-family:'JetBrains Mono',monospace;font-weight:700;padding:2px 6px;border-radius:20px;background:rgba(127,191,170,0.08);color:var(--teal);border:1px solid rgba(127,191,170,0.15);margin-left:5px;vertical-align:middle}
 .venda-valor{font-family:'JetBrains Mono',monospace;font-size:0.81rem;font-weight:700;color:#a8c4d8}
-.venda-comissao{font-family:'JetBrains Mono',monospace;font-size:0.81rem;font-weight:700;color:#a8c4b8}
+.venda-comissao{font-family:'JetBrains Mono',monospace;font-size:0.81rem;font-weight:700;color:#86efb8;text-shadow:0 0 8px rgba(127,191,170,0.25)}
 .venda-acoes{display:flex;gap:4px}
 .btn-sm{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text2);cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 .btn-sm.edit:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
@@ -157,6 +158,23 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5) sepia(1
 .lista-empty{padding:40px 20px;text-align:center;color:var(--text3)}
 .lista-empty .ei{font-size:2.2rem;margin-bottom:10px;opacity:.25;display:block}
 .lista-empty p{font-size:0.84rem;line-height:1.6}
+
+/* ── INSIGHTS CARD ── */
+.insights-card{background:linear-gradient(135deg,rgba(24,28,38,0.95),rgba(30,35,50,0.9));border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;position:relative;overflow:hidden}
+.insights-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(124,156,191,0.3),rgba(127,191,170,0.25),transparent)}
+.insights-title{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.insights-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.insights-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.insight-item{background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center;transition:border-color .18s,background .18s}
+.insight-item:hover{border-color:var(--border2);background:rgba(255,255,255,0.04)}
+.insight-label{font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:var(--text3);margin-bottom:5px;line-height:1.3}
+.insight-val{font-family:'JetBrains Mono',monospace;font-size:0.82rem;font-weight:700;line-height:1.2}
+.insight-val.gold{color:#c9a96e;text-shadow:0 0 12px rgba(201,169,110,0.3)}
+.insight-val.blue{color:#a8c4d8}
+.insight-val.teal{color:#86efb8;text-shadow:0 0 12px rgba(127,191,170,0.25)}
+.insight-sub{font-size:0.62rem;color:var(--text3);margin-top:3px;font-family:'JetBrains Mono',monospace}
+@keyframes countUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.insight-val{animation:countUp .4s ease both}
 
 /* ── RESUMO BAR ── */
 .resumo-bar{background:linear-gradient(135deg,rgba(42,74,110,0.1),rgba(42,74,64,0.08));border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center}
@@ -479,10 +497,32 @@ footer span{color:var(--text2)}
       <div class="tc-count" id="qtdVendas">0 vendas</div>
     </div>
     <div class="total-card comissoes">
-      <span class="tc-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a8c4b8" stroke-width="1.7"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="11"/><path d="M7 4h10l1 7H6l1-7z"/><path d="M5 4a2 2 0 0 0 0 4"/><path d="M19 4a2 2 0 0 1 0 4"/></svg></span>
-      <div class="tc-label">Comissões Hoje</div>
+      <span class="tc-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86efb8" stroke-width="1.7"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="11"/><path d="M7 4h10l1 7H6l1-7z"/><path d="M5 4a2 2 0 0 0 0 4"/><path d="M19 4a2 2 0 0 1 0 4"/></svg></span>
+      <div class="tc-label" style="color:rgba(134,239,184,0.55)">💰 Comissões Hoje</div>
       <div class="tc-value" id="totalComissoes">R$ 0,00</div>
       <div class="tc-count" id="pctMedio">— média</div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS DO MÊS -->
+  <div class="insights-card" id="insightsCard" style="display:none">
+    <div class="insights-title">✦ Insights do Mês</div>
+    <div class="insights-grid">
+      <div class="insight-item">
+        <div class="insight-label">Total do Mês</div>
+        <div class="insight-val blue" id="insTotalMes">—</div>
+        <div class="insight-sub" id="insQtdMes">— vendas</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-label">Melhor Dia</div>
+        <div class="insight-val gold" id="insMelhorDia">—</div>
+        <div class="insight-sub" id="insMelhorDiaVal">—</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-label">Melhor Dia Semana</div>
+        <div class="insight-val teal" id="insMelhorSemana">—</div>
+        <div class="insight-sub" id="insMelhorSemanaVal">—</div>
+      </div>
     </div>
   </div>
 
@@ -1054,6 +1094,7 @@ function mudarAba(aba){
   if(aba==='historico') renderHistorico();
   if(aba==='backup')    atualizarBackupInfo();
   if(aba==='futuras')   renderFuturas();
+  if(aba==='somador')   renderInsights();
 }
 
 /* ════════════════════════════════════════════
@@ -1133,9 +1174,83 @@ function calcTotais(){
   return { sv: arred(sv), sc: arred(sc) };
 }
 
+/* ── INSIGHTS: melhor dia / semana do mês ── */
+function renderInsights(){
+  const hist = loadHist();
+  const now  = new Date();
+  const prefixo = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // Pegar dias do mês atual (histórico fechado)
+  const diasMes = Object.keys(hist).filter(k=>k.startsWith(prefixo));
+
+  // Incluir hoje se tiver vendas
+  const hojeKey = hoje.data;
+  let totalMesV = 0, totalMesN = 0;
+  const porDia = {};
+
+  diasMes.forEach(d=>{
+    porDia[d] = hist[d].totalVendas;
+    totalMesV += hist[d].totalVendas;
+    totalMesN += hist[d].itens.length;
+  });
+
+  // Adiciona hoje se for do mês atual e tiver vendas
+  if(hojeKey.startsWith(prefixo) && hoje.itens.length > 0){
+    const {sv} = calcTotais();
+    porDia[hojeKey] = (porDia[hojeKey]||0) + sv;
+    totalMesV += sv;
+    totalMesN += hoje.itens.length;
+  }
+
+  const card = R('insightsCard');
+  if(totalMesN === 0){ card.style.display='none'; return; }
+  card.style.display = 'block';
+
+  // Total do mês
+  R('insTotalMes').textContent  = brl(arred(totalMesV));
+  R('insQtdMes').textContent    = `${totalMesN} venda${totalMesN!==1?'s':''}`;
+
+  // Melhor dia (data específica)
+  const diasArr = Object.entries(porDia);
+  if(diasArr.length > 0){
+    diasArr.sort((a,b)=>b[1]-a[1]);
+    const [melhorData, melhorV] = diasArr[0];
+    const dt = new Date(melhorData+'T12:00:00');
+    const dNomes = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    R('insMelhorDia').textContent    = `${dNomes[dt.getDay()]} ${dt.getDate().toString().padStart(2,'0')}`;
+    R('insMelhorDiaVal').textContent = brl(arred(melhorV));
+  }
+
+  // Melhor dia da SEMANA (agregado)
+  const dNomesCompleto = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const porSemana = [0,0,0,0,0,0,0];
+  const porSemanaQtd = [0,0,0,0,0,0,0];
+  diasArr.forEach(([d,v])=>{
+    const dow = new Date(d+'T12:00:00').getDay();
+    porSemana[dow] += v;
+    porSemanaQtd[dow]++;
+  });
+  // Média por dia da semana (somente dias com vendas)
+  let melhorDow = -1, melhorMedia = 0;
+  for(let i=0;i<7;i++){
+    if(porSemanaQtd[i]>0){
+      const media = porSemana[i] / porSemanaQtd[i];
+      if(media > melhorMedia){ melhorMedia=media; melhorDow=i; }
+    }
+  }
+  if(melhorDow >= 0){
+    R('insMelhorSemana').textContent    = dNomesCompleto[melhorDow];
+    R('insMelhorSemanaVal').textContent = `⌀ ${brl(arred(melhorMedia))}`;
+  } else {
+    R('insMelhorSemana').textContent    = '—';
+    R('insMelhorSemanaVal').textContent = '';
+  }
+}
+
 function renderLista(){
   const {sv, sc} = calcTotais();
   const n = hoje.itens.length;
+  renderInsights();
 
   R('totalVendas').textContent   = brl(sv);
   R('totalComissoes').textContent = brl(sc);
@@ -1474,10 +1589,13 @@ function recalcDia(hist, data){
    BACKUP
 ════════════════════════════════════════════ */
 function atualizarBackupInfo(){
-  const hist = loadHist();
-  const dias = Object.keys(hist).length;
-  const totalItens = Object.values(hist).reduce((s,d)=>s+d.itens.length,0) + hoje.itens.length;
-  R('backupInfoTxt').textContent = `${dias} dia${dias!==1?'s':''} fechados · ${totalItens} vendas no total`;
+  const hist    = loadHist();
+  const futuras = loadFuturas();
+  const dias    = Object.keys(hist).length;
+  const totalItens  = Object.values(hist).reduce((s,d)=>s+d.itens.length,0) + hoje.itens.length;
+  const futPend = futuras.filter(f=>!f.entregue).length;
+  const futEnt  = futuras.filter(f=>f.entregue).length;
+  R('backupInfoTxt').textContent = `${dias} dia${dias!==1?'s':''} fechados · ${totalItens} venda${totalItens!==1?'s':''} · ${futuras.length} futura${futuras.length!==1?'s':''} (${futPend} pendente${futPend!==1?'s':''}, ${futEnt} entregue${futEnt!==1?'s':''})`;
 }
 
 function exportarJSON(){
@@ -1514,6 +1632,17 @@ function exportarCSV(){
     hoje.itens.forEach(v=>{
       const com = arred(v.valor*v.comissao/100);
       linhas.push([fmtData(hoje.data)+' (aberto)', v.desc, v.valor.toFixed(2).replace('.',','), v.comissao+'%', com.toFixed(2).replace('.',',')]);
+    });
+  }
+  // separator + vendas futuras
+  const futuras = loadFuturas();
+  if(futuras.length){
+    linhas.push([]);
+    linhas.push(['--- VENDAS FUTURAS ---','Cliente','Produtos','Prazo','Status']);
+    futuras.forEach(f=>{
+      const prazoFmt = f.prazo ? new Date(f.prazo+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      const status = f.entregue ? ('Entregue em '+new Date(f.entregueEm).toLocaleDateString('pt-BR')) : 'Pendente';
+      linhas.push(['', f.cliente, f.produtos.replace(/\n/g,' | '), prazoFmt, status]);
     });
   }
   const csv = '\uFEFF' + linhas.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
